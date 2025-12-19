@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Cosmic Hand Galaxy</title>
+
+<style>
+html,body{
+  margin:0;
+  padding:0;
+  background:#000;
+  overflow:hidden;
+  font-family: Arial, sans-serif;
+}
+#status{
+  position:fixed;
+  top:12px;
+  left:50%;
+  transform:translateX(-50%);
+  color:#8cf;
+  font-size:18px;
+  z-index:10;
+}
+#space{
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:70vw;
+  height:70vh;
+  transform:translate(-50%,-50%) scale(1);
+  opacity:0;
+  transition:opacity 1s ease, transform 1.5s ease;
+}
+#space.show{
+  opacity:1;
+  transform:translate(-50%,-50%) scale(1.1) rotate(1deg);
+}
+#space img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+canvas{
+  position:fixed;
+  top:0; left:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+}
+</style>
+</head>
+
+<body>
+<div id="status">🌌 Chờ vũ trụ thức giấc...</div>
+<div id="space"><img id="photo" src="space1.png"></div>
+
+<canvas id="stars"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<script>
+/* ---------- STAR BACKGROUND ---------- */
+const cvs = document.getElementById('stars');
+const ctx = cvs.getContext('2d');
+function resize(){
+  cvs.width=window.innerWidth;
+  cvs.height=window.innerHeight;
+}
+resize(); window.onresize=resize;
+
+let stars=[];
+for(let i=0;i<150;i++){
+  stars.push({
+    x:Math.random()*cvs.width,
+    y:Math.random()*cvs.height,
+    r:Math.random()*1.5+0.5,
+    s:Math.random()*0.3+0.1
+  });
+}
+function drawStars(){
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+  ctx.fillStyle="#fff";
+  stars.forEach(st=>{
+    st.y+=st.s;
+    if(st.y>cvs.height) st.y=0;
+    ctx.beginPath();
+    ctx.arc(st.x,st.y,st.r,0,Math.PI*2);
+    ctx.fill();
+  });
+  requestAnimationFrame(drawStars);
+}
+drawStars();
+
+/* ---------- IMAGES ---------- */
+const images=[
+  "space1.png","space2.png","space3.png","space4.png","space5.png",
+  "space6.png","space7.png","space8.png","space9.png","space10.png"
+];
+let index=0;
+const box=document.getElementById("space");
+const img=document.getElementById("photo");
+const status=document.getElementById("status");
+
+/* ---------- HAND TRACKING ---------- */
+const hands=new Hands({
+  locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+});
+hands.setOptions({
+  maxNumHands:1,
+  minDetectionConfidence:0.7,
+  minTrackingConfidence:0.7
+});
+
+hands.onResults(res=>{
+  if(!res.multiHandLandmarks.length){
+    status.innerText="🌠 Vũ trụ tĩnh lặng...";
+    return;
+  }
+  const lm=res.multiHandLandmarks[0];
+  const wrist=lm[0];
+  const tips=[8,12,16,20];
+  let open=0;
+  tips.forEach(i=>{
+    open+=Math.hypot(lm[i].x-wrist.x,lm[i].y-wrist.y);
+  });
+  open/=4;
+
+  const pinch=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y);
+
+  if(open<0.25){
+    box.classList.remove("show");
+    status.innerText="🌑 Thu vũ trụ";
+  }
+  else if(pinch<0.05){
+    index=(index+1)%images.length;
+    img.src=images[index];
+    status.innerText="✨ Du hành không gian";
+  }
+  else{
+    box.classList.add("show");
+    status.innerText="🌌 Dải ngân hà mở ra";
+  }
+});
+
+/* ---------- CAMERA ---------- */
+const video=document.createElement("video");
+const cam=new Camera(video,{
+  onFrame:async()=>{ await hands.send({image:video}); },
+  width:640,height:480
+});
+cam.start();
+</script>
+</body>
+</html>
