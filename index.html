@@ -2,187 +2,268 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Galaxy Hand Gallery</title>
+<title>Galaxy 3D Hand Gallery</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background: radial-gradient(circle at center, #07002a, #000);
-  font-family: Arial, sans-serif;
-  touch-action: none;
+html,body{
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  background:black;
+  font-family:Arial,sans-serif;
 }
-
-#status {
-  position: fixed;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #0ff;
-  font-size: 14px;
-  z-index: 10;
-  background: rgba(0,0,0,0.4);
-  padding: 6px 14px;
-  border-radius: 20px;
-}
-
-#gallery {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-}
-
-.photo {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  max-width: 80%;
-  max-height: 80%;
-  transform: translate(-50%, -50%) scale(0.9);
-  opacity: 0;
-  transition: opacity 0.45s ease, transform 0.45s ease;
-  pointer-events: none;
-}
-
-.photo.active {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1.05);
+#status{
+  position:fixed;
+  top:12px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:10;
+  color:#0ff;
+  background:rgba(0,0,0,.5);
+  padding:8px 18px;
+  border-radius:20px;
+  font-size:14px;
 }
 </style>
 </head>
 
 <body>
-<div id="status">🌌 Đang khởi động…</div>
-<div id="gallery"></div>
-
-<!-- MediaPipe -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<div id="status">🌌 Galaxy 3D đang khởi động…</div>
 
 <script>
-/* ================= CONFIG ================= */
-const imageFiles = [
-  'space1.png','space2.png','space3.png','space4.png','space5.png',
-  'space6.png','space7.png','space8.png','space9.png','space10.png'
-];
+/* =====================================================
+   CONFIG
+===================================================== */
+const IMAGE_COUNT = 10;
+const IMAGE_RADIUS = 40;
+const STAR_COUNT = 2000;
 
-const SWIPE_THRESHOLD = 35;   // độ nhạy lướt
-const HAND_COOLDOWN = 350;    // ms chống lướt quá nhanh
+/* =====================================================
+   STATE
+===================================================== */
+let scene, camera, renderer;
+let galaxyGroup, starGroup;
+let photoMeshes = [];
+let targetRotation = 0;
+let targetZoom = 80;
+let currentZoom = 80;
 
-/* ================= STATE ================= */
-let currentIndex = 0;
 let lastX = null;
-let lastChangeTime = 0;
 let usingHand = false;
+let lastGestureTime = 0;
 
-/* ================= LOAD IMAGES ================= */
-const gallery = document.getElementById('gallery');
-const statusDiv = document.getElementById('status');
-const photos = [];
+/* =====================================================
+   INIT 3D
+===================================================== */
+init();
+animate();
 
-imageFiles.forEach((src, i) => {
-  const img = document.createElement('img');
-  img.src = src;
-  img.className = 'photo' + (i === 0 ? ' active' : '');
-  gallery.appendChild(img);
-  photos.push(img);
-});
+function init(){
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x000000,0.002);
 
-function showImage(index) {
-  photos.forEach(p => p.classList.remove('active'));
-  photos[index].classList.add('active');
+  camera = new THREE.PerspectiveCamera(60,window.innerWidth/window.innerHeight,0.1,1000);
+  camera.position.z = currentZoom;
+
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio));
+  document.body.appendChild(renderer.domElement);
+
+  galaxyGroup = new THREE.Group();
+  scene.add(galaxyGroup);
+
+  createStars();
+  createPhotos();
+
+  window.addEventListener('resize',onResize);
+  setupMouseTouch();
+  setupHandTracking();
 }
 
-/* ================= IMAGE CHANGE ================= */
-function nextImage(dir) {
-  const now = Date.now();
-  if (now - lastChangeTime < HAND_COOLDOWN) return;
-  lastChangeTime = now;
+/* =====================================================
+   STARS
+===================================================== */
+function createStars(){
+  const geo = new THREE.BufferGeometry();
+  const pos = [];
 
-  currentIndex += dir;
-  if (currentIndex < 0) currentIndex = photos.length - 1;
-  if (currentIndex >= photos.length) currentIndex = 0;
-  showImage(currentIndex);
-}
+  for(let i=0;i<STAR_COUNT;i++){
+    const r = Math.random()*200;
+    const theta = Math.random()*Math.PI*2;
+    const phi = Math.acos(2*Math.random()-1);
 
-/* ================= MOVE HANDLER ================= */
-function handleMove(x) {
-  if (lastX === null) {
-    lastX = x;
-    return;
+    pos.push(
+      r*Math.sin(phi)*Math.cos(theta),
+      r*Math.sin(phi)*Math.sin(theta),
+      r*Math.cos(phi)
+    );
   }
-  const dx = x - lastX;
-  if (Math.abs(dx) > SWIPE_THRESHOLD) {
-    nextImage(dx > 0 ? 1 : -1);
-    lastX = x;
-  }
+
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  const mat = new THREE.PointsMaterial({
+    color:0xffffff,
+    size:1,
+    transparent:true
+  });
+
+  starGroup = new THREE.Points(geo,mat);
+  scene.add(starGroup);
 }
 
-/* ================= MOUSE ================= */
-window.addEventListener('mousedown', e => {
-  usingHand = false;
-  lastX = e.clientX;
-  statusDiv.innerText = "🖱️ Giữ & kéo chuột để lướt ảnh";
-});
-window.addEventListener('mousemove', e => {
-  if (lastX !== null) handleMove(e.clientX);
-});
-window.addEventListener('mouseup', () => lastX = null);
+/* =====================================================
+   PHOTOS IN SPIRAL
+===================================================== */
+function createPhotos(){
+  const loader = new THREE.TextureLoader();
+  const geo = new THREE.PlaneGeometry(10,10);
 
-/* ================= TOUCH ================= */
-window.addEventListener('touchstart', e => {
-  usingHand = false;
-  lastX = e.touches[0].clientX;
-  statusDiv.innerText = "👆 Vuốt để lướt ảnh";
-});
-window.addEventListener('touchmove', e => {
-  handleMove(e.touches[0].clientX);
-});
-window.addEventListener('touchend', () => lastX = null);
-
-/* ================= HAND TRACKING ================= */
-const video = document.createElement('video');
-
-const hands = new Hands({
-  locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-});
-
-hands.setOptions({
-  maxNumHands: 1,
-  modelComplexity: 1,
-  minDetectionConfidence: 0.6,
-  minTrackingConfidence: 0.6
-});
-
-hands.onResults(results => {
-  if (!results.multiHandLandmarks.length) return;
-
-  usingHand = true;
-  const lm = results.multiHandLandmarks[0];
-  const x = lm[8].x * window.innerWidth; // đầu ngón trỏ
-  handleMove(x);
-
-  statusDiv.innerText = "✋ Di chuyển tay để lướt ảnh";
-});
-
-/* ================= CAMERA ================= */
-(async () => {
-  try {
-    const camera = new Camera(video, {
-      onFrame: async () => {
-        await hands.send({ image: video });
-      },
-      width: 640,
-      height: 480
+  for(let i=0;i<IMAGE_COUNT;i++){
+    const tex = loader.load(`space${i+1}.png`);
+    const mat = new THREE.MeshBasicMaterial({
+      map:tex,
+      transparent:true,
+      side:THREE.DoubleSide
     });
-    await camera.start();
-    statusDiv.innerText = "📷 Camera sẵn sàng – xoay tay để xem ảnh";
-  } catch (e) {
-    statusDiv.innerText = "👆 Vuốt / kéo để xem ảnh (không có camera)";
+
+    const mesh = new THREE.Mesh(geo,mat);
+
+    const angle = i/IMAGE_COUNT * Math.PI*2;
+    const radius = IMAGE_RADIUS + Math.random()*10;
+    const y = (Math.random()-0.5)*10;
+
+    mesh.position.set(
+      Math.cos(angle)*radius,
+      y,
+      Math.sin(angle)*radius
+    );
+
+    mesh.lookAt(0,0,0);
+    galaxyGroup.add(mesh);
+    photoMeshes.push(mesh);
   }
-})();
+}
+
+/* =====================================================
+   INPUT – MOUSE & TOUCH
+===================================================== */
+function setupMouseTouch(){
+  window.addEventListener('mousedown',e=>{
+    usingHand=false;
+    lastX=e.clientX;
+    status("🖱️ Kéo chuột để xoay – cuộn để zoom");
+  });
+
+  window.addEventListener('mousemove',e=>{
+    if(lastX!==null){
+      targetRotation += (e.clientX-lastX)*0.002;
+      lastX=e.clientX;
+    }
+  });
+
+  window.addEventListener('mouseup',()=>lastX=null);
+
+  window.addEventListener('wheel',e=>{
+    targetZoom += e.deltaY*0.05;
+    targetZoom = THREE.MathUtils.clamp(targetZoom,30,150);
+  });
+
+  window.addEventListener('touchstart',e=>{
+    usingHand=false;
+    lastX=e.touches[0].clientX;
+    status("👆 Vuốt để xoay – pinch để zoom");
+  });
+
+  window.addEventListener('touchmove',e=>{
+    const x=e.touches[0].clientX;
+    targetRotation += (x-lastX)*0.003;
+    lastX=x;
+  });
+
+  window.addEventListener('touchend',()=>lastX=null);
+}
+
+/* =====================================================
+   HAND TRACKING
+===================================================== */
+function setupHandTracking(){
+  const video=document.createElement('video');
+  const hands=new Hands({
+    locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+  });
+
+  hands.setOptions({
+    maxNumHands:1,
+    modelComplexity:1,
+    minDetectionConfidence:0.6,
+    minTrackingConfidence:0.6
+  });
+
+  hands.onResults(res=>{
+    if(!res.multiHandLandmarks.length) return;
+    usingHand=true;
+
+    const lm=res.multiHandLandmarks[0];
+    const x=lm[8].x-0.5;
+    targetRotation += x*0.05;
+
+    const pinch=Math.hypot(
+      lm[4].x-lm[8].x,
+      lm[4].y-lm[8].y
+    );
+
+    if(pinch<0.05){
+      targetZoom-=1;
+    }else{
+      targetZoom+=0.5;
+    }
+
+    targetZoom=THREE.MathUtils.clamp(targetZoom,30,150);
+    status("✋ Xoay tay để xoay – pinch để zoom");
+  });
+
+  try{
+    const cam=new Camera(video,{
+      onFrame:async()=>await hands.send({image:video}),
+      width:640,height:480
+    });
+    cam.start();
+  }catch(e){
+    status("👆 Không có camera – dùng chuột / vuốt");
+  }
+}
+
+/* =====================================================
+   ANIMATE
+===================================================== */
+function animate(){
+  requestAnimationFrame(animate);
+
+  galaxyGroup.rotation.y += (targetRotation-galaxyGroup.rotation.y)*0.05;
+  currentZoom += (targetZoom-currentZoom)*0.1;
+  camera.position.z=currentZoom;
+
+  starGroup.rotation.y += 0.0005;
+  renderer.render(scene,camera);
+}
+
+/* =====================================================
+   UTILS
+===================================================== */
+function onResize(){
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+}
+
+function status(t){
+  document.getElementById("status").innerText=t;
+}
 </script>
 </body>
 </html>
