@@ -15,144 +15,103 @@ html,body{margin:0;overflow:hidden;background:#000}
 </style>
 </head>
 <body>
-<div id="hint">🌀 Kéo / vuốt để xoay – cuộn để zoom – giơ tay nếu có camera</div>
+<div id="hint">🌀 Kéo để xoay – Cuộn để zoom</div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
 
 <script>
 /* ================= SCENE ================= */
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x000010,0.0009);
+scene.background = new THREE.Color(0x000010);
+scene.fog = new THREE.FogExp2(0x000010,0.0005);
 
-const camera = new THREE.PerspectiveCamera(
-  60,innerWidth/innerHeight,0.1,3000
-);
+const camera = new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,2000);
 camera.position.set(0,80,260);
 
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(devicePixelRatio);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 document.body.appendChild(renderer.domElement);
 
 /* ================= CONTROLS ================= */
 const controls = new THREE.OrbitControls(camera,renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = .05;
-controls.minDistance = 60;
+controls.minDistance = 80;
 controls.maxDistance = 600;
 
 /* ================= LIGHT ================= */
-scene.add(new THREE.AmbientLight(0x8899ff,.35));
-const coreLight = new THREE.PointLight(0xffffff,3,800);
+scene.add(new THREE.AmbientLight(0x8899ff,.4));
+const coreLight = new THREE.PointLight(0xffffff,2,800);
 scene.add(coreLight);
 
 /* ================= STAR TEXTURE ================= */
-function createStarTexture(){
+function starTexture(){
   const c=document.createElement('canvas');
   c.width=c.height=64;
-  const ctx=c.getContext('2d');
-  const g=ctx.createRadialGradient(32,32,0,32,32,32);
-  g.addColorStop(0,'rgba(255,255,255,1)');
-  g.addColorStop(.2,'rgba(180,200,255,.8)');
-  g.addColorStop(.5,'rgba(80,120,255,.3)');
+  const g=c.getContext('2d').createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0,'#fff');
+  g.addColorStop(.3,'rgba(180,200,255,.8)');
   g.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=g;
-  ctx.fillRect(0,0,64,64);
+  const ctx=c.getContext('2d');
+  ctx.fillStyle=g;ctx.fillRect(0,0,64,64);
   return new THREE.CanvasTexture(c);
 }
-const starTex = createStarTexture();
 
 /* ================= GALAXY ================= */
-const starCount = 16000;
+const stars = 14000;
 const geo = new THREE.BufferGeometry();
-const pos = new Float32Array(starCount*3);
-const col = new Float32Array(starCount*3);
-
-for(let i=0;i<starCount;i++){
-  const r = Math.pow(Math.random(),0.35)*500;
-  const arm = (i%4)/4*Math.PI*2;
-  const angle = arm + r*0.015 + Math.random()*.4;
-  const y = (Math.random()-.5)*40*Math.exp(-r/300);
-
-  pos[i*3]=Math.cos(angle)*r;
-  pos[i*3+1]=y;
-  pos[i*3+2]=Math.sin(angle)*r;
-
-  const c = 0.6+Math.random()*0.4;
-  col[i*3]=c;
-  col[i*3+1]=c*0.9;
-  col[i*3+2]=1;
+const pos = new Float32Array(stars*3);
+const col = new Float32Array(stars*3);
+for(let i=0;i<stars;i++){
+  const r=Math.pow(Math.random(),0.35)*450;
+  const a=r*0.015 + Math.random()*Math.PI*2;
+  pos[i*3]=Math.cos(a)*r;
+  pos[i*3+1]=(Math.random()-.5)*30;
+  pos[i*3+2]=Math.sin(a)*r;
+  col[i*3]=0.6; col[i*3+1]=0.7; col[i*3+2]=1;
 }
-
 geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
 geo.setAttribute('color',new THREE.BufferAttribute(col,3));
 
-const mat = new THREE.PointsMaterial({
-  size:3,
-  map:starTex,
-  transparent:true,
-  depthWrite:false,
-  vertexColors:true,
-  blending:THREE.AdditiveBlending
-});
-
-const galaxy = new THREE.Points(geo,mat);
+const galaxy = new THREE.Points(
+  geo,
+  new THREE.PointsMaterial({
+    size:2.8,
+    map:starTexture(),
+    transparent:true,
+    depthWrite:false,
+    vertexColors:true,
+    blending:THREE.AdditiveBlending
+  })
+);
 scene.add(galaxy);
-
-/* ================= NEBULA ================= */
-const nebGeo = new THREE.SphereGeometry(380,64,64);
-const nebMat = new THREE.MeshBasicMaterial({
-  color:0x5522ff,
-  transparent:true,
-  opacity:.05,
-  side:THREE.BackSide,
-  blending:THREE.AdditiveBlending
-});
-const nebula = new THREE.Mesh(nebGeo,nebMat);
-scene.add(nebula);
 
 /* ================= IMAGES ================= */
 const loader = new THREE.TextureLoader();
-const images = [];
+const images=[];
 for(let i=1;i<=10;i++){
-  const tex = loader.load(`space${i}.png`);
-  const m = new THREE.MeshStandardMaterial({
-    map:tex,
-    transparent:true,
-    roughness:.4,
-    metalness:.1
+  loader.load(`space${i}.png`, tex=>{
+    const m=new THREE.MeshStandardMaterial({map:tex,transparent:true});
+    const p=new THREE.Mesh(new THREE.PlaneGeometry(38,38),m);
+    p.userData={a:Math.random()*Math.PI*2,r:120+Math.random()*120,s:.0004+Math.random()*.0006};
+    scene.add(p);images.push(p);
   });
-  const p = new THREE.Mesh(
-    new THREE.PlaneGeometry(40,40),
-    m
-  );
-  p.userData = {
-    angle:Math.random()*Math.PI*2,
-    radius:120+Math.random()*120,
-    speed:.0004+Math.random()*.0006
-  };
-  scene.add(p);
-  images.push(p);
 }
 
 /* ================= ANIMATE ================= */
-let t=0;
 function animate(){
   requestAnimationFrame(animate);
-  t+=0.001;
-
-  galaxy.rotation.y += 0.0004;
-  nebula.rotation.y -= 0.00015;
-
+  galaxy.rotation.y+=0.0004;
   images.forEach(p=>{
-    p.userData.angle+=p.userData.speed;
-    p.position.x=Math.cos(p.userData.angle)*p.userData.radius;
-    p.position.z=Math.sin(p.userData.angle)*p.userData.radius;
-    p.position.y=Math.sin(p.userData.angle*2)*20;
-    p.lookAt(0,0,0);
+    p.userData.a+=p.userData.s;
+    p.position.set(
+      Math.cos(p.userData.a)*p.userData.r,
+      Math.sin(p.userData.a*2)*18,
+      Math.sin(p.userData.a)*p.userData.r
+    );
+    p.lookAt(camera.position);
   });
-
   controls.update();
   renderer.render(scene,camera);
 }
