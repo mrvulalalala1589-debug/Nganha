@@ -2,117 +2,173 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Mini Galaxy Universe</title>
+<title>Galaxy 3D Hand Gallery – Demo</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
 <style>
-html,body{margin:0;overflow:hidden;background:#000}
-#hint{
-  position:fixed;top:10px;left:50%;
+html,body{
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  background:black;
+}
+#status{
+  position:fixed;
+  top:12px;
+  left:50%;
   transform:translateX(-50%);
-  color:#7ff;font-size:14px;
-  z-index:10;opacity:.8
+  color:#7ff;
+  background:rgba(0,0,0,.5);
+  padding:8px 18px;
+  border-radius:20px;
+  font-size:14px;
+  z-index:10;
 }
 </style>
 </head>
-<body>
-<div id="hint">🌀 Kéo để xoay – Cuộn để zoom</div>
 
-<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-<script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+<body>
+<div id="status">🌌 Galaxy đang hình thành…</div>
 
 <script>
+/* ================= CONFIG ================= */
+const IMAGE_COUNT = 10;
+const STAR_NEAR = 1200;
+const STAR_FAR  = 2000;
+
 /* ================= SCENE ================= */
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000010);
-scene.fog = new THREE.FogExp2(0x000010,0.0005);
+let scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000010,0.0018);
 
-const camera = new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,2000);
-camera.position.set(0,80,260);
+let camera = new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,1500);
+camera.position.z = 90;
 
-const renderer = new THREE.WebGLRenderer({antialias:true});
+let renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setPixelRatio(Math.min(2,devicePixelRatio));
 document.body.appendChild(renderer.domElement);
 
-/* ================= CONTROLS ================= */
-const controls = new THREE.OrbitControls(camera,renderer.domElement);
-controls.enableDamping = true;
-controls.minDistance = 80;
-controls.maxDistance = 600;
-
-/* ================= LIGHT ================= */
-scene.add(new THREE.AmbientLight(0x8899ff,.4));
-const coreLight = new THREE.PointLight(0xffffff,2,800);
-scene.add(coreLight);
+/* ================= GROUPS ================= */
+const galaxyGroup = new THREE.Group();
+scene.add(galaxyGroup);
 
 /* ================= STAR TEXTURE ================= */
-function starTexture(){
+function createStarTexture(size,color){
   const c=document.createElement('canvas');
-  c.width=c.height=64;
-  const g=c.getContext('2d').createRadialGradient(32,32,0,32,32,32);
-  g.addColorStop(0,'#fff');
-  g.addColorStop(.3,'rgba(180,200,255,.8)');
-  g.addColorStop(1,'rgba(0,0,0,0)');
+  c.width=c.height=size;
   const ctx=c.getContext('2d');
-  ctx.fillStyle=g;ctx.fillRect(0,0,64,64);
+  const g=ctx.createRadialGradient(
+    size/2,size/2,0,
+    size/2,size/2,size/2
+  );
+  g.addColorStop(0,'rgba(255,255,255,1)');
+  g.addColorStop(0.2,color);
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,size,size);
   return new THREE.CanvasTexture(c);
 }
 
-/* ================= GALAXY ================= */
-const stars = 14000;
-const geo = new THREE.BufferGeometry();
-const pos = new Float32Array(stars*3);
-const col = new Float32Array(stars*3);
-for(let i=0;i<stars;i++){
-  const r=Math.pow(Math.random(),0.35)*450;
-  const a=r*0.015 + Math.random()*Math.PI*2;
-  pos[i*3]=Math.cos(a)*r;
-  pos[i*3+1]=(Math.random()-.5)*30;
-  pos[i*3+2]=Math.sin(a)*r;
-  col[i*3]=0.6; col[i*3+1]=0.7; col[i*3+2]=1;
-}
-geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
-geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+const starTexBlue = createStarTexture(64,'rgba(120,150,255,.8)');
+const starTexWhite = createStarTexture(64,'rgba(255,255,255,.8)');
 
-const galaxy = new THREE.Points(
-  geo,
-  new THREE.PointsMaterial({
-    size:2.8,
-    map:starTexture(),
+/* ================= STARS ================= */
+function createStars(count,spread,size,texture){
+  const geo=new THREE.BufferGeometry();
+  const pos=[];
+  for(let i=0;i<count;i++){
+    const r=Math.random()*spread;
+    const t=Math.random()*Math.PI*2;
+    const p=Math.acos(2*Math.random()-1);
+    pos.push(
+      r*Math.sin(p)*Math.cos(t),
+      r*Math.sin(p)*Math.sin(t),
+      r*Math.cos(p)
+    );
+  }
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  const mat=new THREE.PointsMaterial({
+    size:size,
+    map:texture,
     transparent:true,
     depthWrite:false,
-    vertexColors:true,
     blending:THREE.AdditiveBlending
-  })
-);
-scene.add(galaxy);
-
-/* ================= IMAGES ================= */
-const loader = new THREE.TextureLoader();
-const images=[];
-for(let i=1;i<=10;i++){
-  loader.load(`space${i}.png`, tex=>{
-    const m=new THREE.MeshStandardMaterial({map:tex,transparent:true});
-    const p=new THREE.Mesh(new THREE.PlaneGeometry(38,38),m);
-    p.userData={a:Math.random()*Math.PI*2,r:120+Math.random()*120,s:.0004+Math.random()*.0006};
-    scene.add(p);images.push(p);
   });
+  return new THREE.Points(geo,mat);
 }
 
+const starsFar = createStars(STAR_FAR,600,1.2,starTexWhite);
+const starsNear = createStars(STAR_NEAR,250,2.2,starTexBlue);
+scene.add(starsFar);
+scene.add(starsNear);
+
+/* ================= CORE ================= */
+const coreGeo = new THREE.SphereGeometry(12,32,32);
+const coreMat = new THREE.MeshBasicMaterial({
+  color:0x88aaff,
+  transparent:true,
+  opacity:0.15,
+  blending:THREE.AdditiveBlending
+});
+const core = new THREE.Mesh(coreGeo,coreMat);
+scene.add(core);
+
+/* ================= PHOTOS ================= */
+const loader = new THREE.TextureLoader();
+const photoMeshes=[];
+const photoGeo = new THREE.PlaneGeometry(12,12);
+
+for(let i=0;i<IMAGE_COUNT;i++){
+  const tex = loader.load(`space${i+1}.png`);
+  const mat = new THREE.MeshBasicMaterial({
+    map:tex,
+    transparent:true,
+    side:THREE.DoubleSide
+  });
+  const m = new THREE.Mesh(photoGeo,mat);
+  const a = i/IMAGE_COUNT*Math.PI*2;
+  const r = 45;
+  m.position.set(Math.cos(a)*r,Math.sin(a*2)*6,Math.sin(a)*r);
+  m.lookAt(0,0,0);
+  galaxyGroup.add(m);
+  photoMeshes.push(m);
+}
+
+/* ================= INTERACTION ================= */
+let targetRot=0, targetZoom=90, lastX=null;
+
+addEventListener('mousedown',e=>lastX=e.clientX);
+addEventListener('mousemove',e=>{
+  if(lastX!==null){
+    targetRot+=(e.clientX-lastX)*0.002;
+    lastX=e.clientX;
+  }
+});
+addEventListener('mouseup',()=>lastX=null);
+addEventListener('wheel',e=>{
+  targetZoom+=e.deltaY*0.05;
+  targetZoom=THREE.MathUtils.clamp(targetZoom,40,150);
+});
+
 /* ================= ANIMATE ================= */
+let t=0;
 function animate(){
   requestAnimationFrame(animate);
-  galaxy.rotation.y+=0.0004;
-  images.forEach(p=>{
-    p.userData.a+=p.userData.s;
-    p.position.set(
-      Math.cos(p.userData.a)*p.userData.r,
-      Math.sin(p.userData.a*2)*18,
-      Math.sin(p.userData.a)*p.userData.r
-    );
-    p.lookAt(camera.position);
-  });
-  controls.update();
+  t+=0.01;
+
+  galaxyGroup.rotation.y += (targetRot-galaxyGroup.rotation.y)*0.05;
+  camera.position.z += (targetZoom-camera.position.z)*0.08;
+
+  starsFar.rotation.y += 0.00015;
+  starsNear.rotation.y -= 0.0003;
+
+  const pulse = 1 + Math.sin(t)*0.05;
+  core.scale.set(pulse,pulse,pulse);
+
   renderer.render(scene,camera);
 }
 animate();
