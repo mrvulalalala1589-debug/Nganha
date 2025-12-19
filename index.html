@@ -1,834 +1,615 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<title>Awaken The Universe - Hoàn chỉnh</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body {
-  width: 100%; height: 100%; overflow: hidden;
-  background: #000; touch-action: none;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-#hint {
-  position: fixed; top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  color: rgba(255, 230, 255, 0.95);
-  font-size: 20px; text-align: center; z-index: 10;
-  pointer-events: none;
-  text-shadow: 0 0 30px rgba(255, 150, 255, 0.9), 0 0 60px rgba(150, 100, 255, 0.6);
-  animation: pulse 3s ease-in-out infinite;
-  transition: opacity 1s ease;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
-  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
-}
-#backHint {
-  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-  color: rgba(200, 230, 255, 0.8); font-size: 15px; text-align: center;
-  z-index: 10; pointer-events: none; opacity: 0;
-  text-shadow: 0 0 20px rgba(100, 200, 255, 0.8);
-  transition: opacity 0.8s ease;
-}
-canvas { display: block; }
-#loading {
-  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  color: #fff; font-size: 18px; z-index: 5;
-  text-shadow: 0 0 20px rgba(150, 200, 255, 0.8);
-}
-</style>
+    <meta charset="UTF-8">
+    <title>Awaken The Universe - Ultimate Remaster</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%; height: 100%; overflow: hidden;
+            background: #000; touch-action: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+        }
+        #hint {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 230, 255, 0.95);
+            font-size: 22px; text-align: center;
+            text-shadow: 0 0 30px rgba(255, 100, 255, 0.9), 0 0 60px rgba(100, 100, 255, 0.8);
+            animation: pulse 3s ease-in-out infinite;
+            transition: opacity 1s ease;
+            letter-spacing: 2px;
+            font-weight: 300;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); text-shadow: 0 0 20px rgba(255, 100, 255, 0.5); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); text-shadow: 0 0 50px rgba(255, 100, 255, 1); }
+        }
+        #backHint {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            color: rgba(100, 200, 255, 0.6); font-size: 14px;
+            opacity: 0; transition: opacity 1s ease;
+            letter-spacing: 1px;
+        }
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #fff; font-size: 16px; z-index: 20;
+            background: rgba(0,0,0,0.8); padding: 15px 30px; border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+    </style>
 </head>
 <body>
 
-<div id="loading">✨ Đang tải vũ trụ...</div>
-<div id="hint" style="opacity: 0;">🌌 Chạm để đánh thức vũ trụ 🌌</div>
-<div id="backHint">👆 Click phải hoặc nắm tay để quay về 🌠</div>
+    <div id="loading">✨ Đang khởi tạo ma trận vũ trụ...</div>
+    <div id="ui-layer">
+        <div id="hint" style="opacity: 0;">CHẠM ĐỂ ĐÁNH THỨC</div>
+        <div id="backHint">Click chuột phải để quay về mặt đất</div>
+    </div>
 
-<!-- Thư viện Three.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- CẤU HÌNH IMPORT MODULE TRỰC TIẾP TỪ CDN (Không cần tải file) -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
 
-<script>
-// ===== KHỞI TẠO SCENE CƠ BẢN =====
-const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x0a0520, 0.00025);
+    <script type="module">
+        import * as THREE from 'three';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
-const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 5000);
-camera.position.set(0, 20, 100);
-camera.lookAt(0, 40, 0);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.4;
-document.body.appendChild(renderer.domElement);
-
-// ===== TẠO TEXTURE TỰ ĐỘNG (KHÔNG CẦN ẢNH NGOÀI CHO HIỆU ỨNG SAO) =====
-function createGlowTexture(innerColor, outerColor) {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 128;
-  const ctx = canvas.getContext('2d');
-  const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-  gradient.addColorStop(0, innerColor);
-  gradient.addColorStop(0.15, outerColor);
-  gradient.addColorStop(0.4, 'rgba(100, 100, 255, 0.2)');
-  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 128, 128);
-  return new THREE.CanvasTexture(canvas);
-}
-
-function createCrossFlareTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 128;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'rgba(255, 255, 255, 0)';
-  ctx.fillRect(0, 0, 128, 128);
-  
-  const hGrad = ctx.createLinearGradient(0, 64, 128, 64);
-  hGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-  hGrad.addColorStop(0.5, 'rgba(255, 255, 255, 1)');
-  hGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-  ctx.fillStyle = hGrad;
-  ctx.fillRect(0, 60, 128, 8);
-  
-  const vGrad = ctx.createLinearGradient(64, 0, 64, 128);
-  vGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-  vGrad.addColorStop(0.5, 'rgba(255, 255, 255, 1)');
-  vGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-  ctx.fillStyle = vGrad;
-  ctx.fillRect(60, 0, 8, 128);
-  
-  const cGrad = ctx.createRadialGradient(64, 64, 0, 64, 64, 30);
-  cGrad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  cGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-  ctx.fillStyle = cGrad;
-  ctx.fillRect(34, 34, 60, 60);
-  
-  return new THREE.CanvasTexture(canvas);
-}
-
-const starGlowTex = createGlowTexture('rgba(255, 255, 255, 1)', 'rgba(180, 200, 255, 0.6)');
-const warmGlowTex = createGlowTexture('rgba(255, 240, 200, 1)', 'rgba(255, 180, 120, 0.7)');
-const crossFlareTex = createCrossFlareTexture();
-const bokehTex = createGlowTexture('rgba(255, 200, 255, 0.8)', 'rgba(150, 150, 255, 0.3)');
-
-// ===== BẦU TRỜI =====
-const skyGeo = new THREE.SphereGeometry(2000, 32, 32);
-const skyMat = new THREE.ShaderMaterial({
-  uniforms: {
-    topColor: { value: new THREE.Color(0x0a0520) },
-    bottomColor: { value: new THREE.Color(0x4a2860) },
-    horizonColor: { value: new THREE.Color(0xff8866) },
-    offset: { value: 20 },
-    exponent: { value: 0.6 }
-  },
-  vertexShader: `
-    varying vec3 vWorldPosition;
-    void main() {
-      vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-      vWorldPosition = worldPosition.xyz;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform vec3 topColor;
-    uniform vec3 bottomColor;
-    uniform vec3 horizonColor;
-    uniform float offset;
-    uniform float exponent;
-    varying vec3 vWorldPosition;
-    void main() {
-      float h = normalize(vWorldPosition + offset).y;
-      float t = max(pow(max(h, 0.0), exponent), 0.0);
-      vec3 skyColor = mix(bottomColor, topColor, t);
-      float horizonGlow = exp(-abs(h) * 3.0) * 0.5;
-      skyColor = mix(skyColor, horizonColor, horizonGlow);
-      gl_FragColor = vec4(skyColor, 1.0);
-    }
-  `,
-  side: THREE.BackSide
-});
-const sky = new THREE.Mesh(skyGeo, skyMat);
-scene.add(sky);
-
-// ===== TẠO CÁC TẦNG SAO =====
-function createStarfield(count, spread, yRange, sizeRange, useFlare, depthZ, driftSpeed) {
-  const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(count * 3);
-  const sizes = new Float32Array(count);
-  const colors = new Float32Array(count * 3);
-  const alphas = new Float32Array(count);
-  
-  for (let i = 0; i < count; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const r = Math.sqrt(Math.random()) * spread;
-    positions[i * 3] = Math.cos(theta) * r;
-    positions[i * 3 + 1] = (Math.random() - 0.3) * yRange;
-    positions[i * 3 + 2] = Math.sin(theta) * r + depthZ;
-    
-    sizes[i] = sizeRange[0] + Math.random() * (sizeRange[1] - sizeRange[0]);
-    alphas[i] = 0.2 + Math.random() * 0.5;
-    
-    const colorChoice = Math.random();
-    if (colorChoice > 0.95) {
-      colors[i * 3] = 1.0; colors[i * 3 + 1] = 0.9; colors[i * 3 + 2] = 0.8;
-    } else if (colorChoice > 0.85) {
-      colors[i * 3] = 0.8; colors[i * 3 + 1] = 0.9; colors[i * 3 + 2] = 1.0;
-    } else {
-      colors[i * 3] = 0.9; colors[i * 3 + 1] = 0.9; colors[i * 3 + 2] = 0.92;
-    }
-  }
-  
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geometry.setAttribute('alpha', new THREE.BufferAttribute(alphas, 1));
-  
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      pointTexture: { value: useFlare ? crossFlareTex : starGlowTex },
-      time: { value: 0 }
-    },
-    vertexShader: `
-      attribute float size;
-      attribute float alpha;
-      attribute vec3 color;
-      varying float vAlpha;
-      varying vec3 vColor;
-      uniform float time;
-      void main() {
-        vAlpha = alpha * (0.7 + 0.3 * sin(time * 1.2 + position.x * 0.008 + position.z * 0.012));
-        vColor = color;
-        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = size * (400.0 / -mvPosition.z);
-        gl_Position = projectionMatrix * mvPosition;
-      }
-    `,
-    fragmentShader: `
-      uniform sampler2D pointTexture;
-      varying float vAlpha;
-      varying vec3 vColor;
-      void main() {
-        vec4 texColor = texture2D(pointTexture, gl_PointCoord);
-        gl_FragColor = vec4(vColor * texColor.rgb, texColor.a * vAlpha);
-      }
-    `,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    transparent: true,
-    vertexColors: true
-  });
-  
-  const points = new THREE.Points(geometry, material);
-  points.userData.driftSpeed = driftSpeed;
-  return points;
-}
-
-const deepStars = createStarfield(8000, 2800, 1200, [0.5, 1.2], false, -500, 0);
-scene.add(deepStars);
-const bgStars = createStarfield(6000, 2200, 1000, [1, 2.5], false, -200, 0.0002);
-scene.add(bgStars);
-const midStars = createStarfield(3000, 1800, 800, [2, 4], false, 0, 0.0005);
-scene.add(midStars);
-const fgStars = createStarfield(800, 1500, 600, [3, 6], false, 100, 0.001);
-scene.add(fgStars);
-const brightStars = createStarfield(60, 1800, 700, [10, 18], true, 50, 0.0008);
-scene.add(brightStars);
-
-// ===== BỤI VŨ TRỤ =====
-function createCosmicDust() {
-  const dustLayers = new THREE.Group();
-  
-  for (let layer = 0; layer < 3; layer++) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    
-    const imgData = ctx.createImageData(512, 512);
-    for (let i = 0; i < imgData.data.length; i += 4) {
-      const noise = Math.random();
-      if (noise > 0.85) {
-        const intensity = (noise - 0.85) / 0.15;
-        imgData.data[i] = 150 + intensity * 105;
-        imgData.data[i + 1] = 140 + intensity * 115;
-        imgData.data[i + 2] = 180 + intensity * 75;
-        imgData.data[i + 3] = intensity * 30;
-      }
-    }
-    ctx.putImageData(imgData, 0, 0);
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    
-    const geometry = new THREE.PlaneGeometry(2200, 1400);
-    const material = new THREE.MeshBasicMaterial({
-      map: texture,
-      transparent: true,
-      opacity: 0.08 - layer * 0.02,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.DoubleSide
-    });
-    
-    const dust = new THREE.Mesh(geometry, material);
-    dust.position.set((Math.random() - 0.5) * 300, 60 + layer * 40, -400 - layer * 150);
-    dust.rotation.x = -0.2;
-    dust.userData.driftSpeed = 0.01 + layer * 0.005;
-    dust.userData.driftPhase = Math.random() * Math.PI * 2;
-    
-    dustLayers.add(dust);
-  }
-  
-  return dustLayers;
-}
-const cosmicDust = createCosmicDust();
-scene.add(cosmicDust);
-
-function createBokehParticles() {
-  const geometry = new THREE.BufferGeometry();
-  const count = 300;
-  const positions = new Float32Array(count * 3);
-  const sizes = new Float32Array(count);
-  const colors = new Float32Array(count * 3);
-  
-  const bokehColors = [[1.0, 0.8, 1.0], [0.8, 0.9, 1.0], [1.0, 0.9, 0.8], [0.9, 0.8, 1.0]];
-  
-  for (let i = 0; i < count; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const r = 300 + Math.random() * 800;
-    positions[i * 3] = Math.cos(theta) * r;
-    positions[i * 3 + 1] = -50 + Math.random() * 400;
-    positions[i * 3 + 2] = Math.sin(theta) * r - 200;
-    sizes[i] = 15 + Math.random() * 40;
-    
-    const color = bokehColors[Math.floor(Math.random() * bokehColors.length)];
-    colors[i * 3] = color[0];
-    colors[i * 3 + 1] = color[1];
-    colors[i * 3 + 2] = color[2];
-  }
-  
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  
-  const material = new THREE.PointsMaterial({
-    size: 30, map: bokehTex, transparent: true, opacity: 0.4,
-    blending: THREE.AdditiveBlending, vertexColors: true, depthWrite: false
-  });
-  
-  return new THREE.Points(geometry, material);
-}
-const bokehParticles = createBokehParticles();
-scene.add(bokehParticles);
-
-// ===== MÂY TINH VÂN =====
-function createNebulaCloud(color, posY, posZ, size) {
-  const geometry = new THREE.BufferGeometry();
-  const count = 400;
-  const positions = new Float32Array(count * 3);
-  const sizes = new Float32Array(count);
-  
-  for (let i = 0; i < count; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * size;
-    positions[i * 3 + 1] = posY + (Math.random() - 0.5) * 80;
-    positions[i * 3 + 2] = posZ + (Math.random() - 0.5) * 200;
-    sizes[i] = 60 + Math.random() * 100;
-  }
-  
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-  
-  const material = new THREE.PointsMaterial({
-    size: 100, map: starGlowTex, color: color, transparent: true,
-    opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false
-  });
-  
-  return new THREE.Points(geometry, material);
-}
-
-const nebulaClouds = [];
-nebulaClouds.push(createNebulaCloud(0x6644ff, 80, -400, 1200));
-nebulaClouds.push(createNebulaCloud(0xff66aa, 60, -500, 1000));
-nebulaClouds.push(createNebulaCloud(0x44aaff, 100, -350, 1100));
-nebulaClouds.forEach(cloud => scene.add(cloud));
-
-// ===== SAO BĂNG =====
-const meteors = [];
-function createMeteor() {
-  const group = new THREE.Group();
-  
-  const trailLength = 80;
-  const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(trailLength * 3);
-  const colors = new Float32Array(trailLength * 3);
-  
-  for (let i = 0; i < trailLength; i++) {
-    const t = i / trailLength;
-    positions[i * 3] = t * 50;
-    positions[i * 3 + 1] = t * 18;
-    positions[i * 3 + 2] = t * 100;
-    
-    const intensity = 1 - t;
-    colors[i * 3] = 1.0 * intensity;
-    colors[i * 3 + 1] = 0.85 * intensity;
-    colors[i * 3 + 2] = 0.65 * intensity;
-  }
-  
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  
-  const trail = new THREE.Line(geometry, new THREE.LineBasicMaterial({
-    vertexColors: true, linewidth: 3, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending
-  }));
-  group.add(trail);
-  
-  const coreMat = new THREE.SpriteMaterial({
-    map: warmGlowTex, color: 0xffeeaa, blending: THREE.AdditiveBlending, transparent: true
-  });
-  const coreSprite = new THREE.Sprite(coreMat);
-  coreSprite.scale.set(12, 12, 1);
-  group.add(coreSprite);
-  
-  const particleGeo = new THREE.BufferGeometry();
-  const particleCount = 30;
-  const particlePos = new Float32Array(particleCount * 3);
-  const particleSizes = new Float32Array(particleCount);
-  
-  for (let i = 0; i < particleCount; i++) {
-    const t = i / particleCount;
-    particlePos[i * 3] = t * 45 + (Math.random() - 0.5) * 4;
-    particlePos[i * 3 + 1] = t * 16 + (Math.random() - 0.5) * 4;
-    particlePos[i * 3 + 2] = t * 90 + (Math.random() - 0.5) * 8;
-    particleSizes[i] = (1 - t) * 3;
-  }
-  
-  particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
-  particleGeo.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
-  
-  const particleMat = new THREE.PointsMaterial({
-    size: 4, map: starGlowTex, color: 0xffdd88, transparent: true,
-    blending: THREE.AdditiveBlending, depthWrite: false
-  });
-  
-  const particles = new THREE.Points(particleGeo, particleMat);
-  group.add(particles);
-  
-  group.position.set(Math.random() * 700 - 350, 180 + Math.random() * 250, -450 - Math.random() * 250);
-  group.userData.speed = 0.9 + Math.random() * 1.4;
-  group.userData.direction = new THREE.Vector3(-1.6, -0.9, -2.2).normalize();
-  
-  scene.add(group);
-  meteors.push(group);
-}
-for (let i = 0; i < 15; i++) createMeteor();
-
-// ===== MÂY KHÍ QUYỂN =====
-const atmosphericClouds = [];
-for (let i = 0; i < 5; i++) {
-  const geometry = new THREE.PlaneGeometry(1600, 450, 25, 25);
-  const positions = geometry.attributes.position;
-  
-  for (let j = 0; j < positions.count; j++) {
-    const wave = Math.sin(j * 0.2) * Math.cos(j * 0.15);
-    positions.setZ(j, wave * 20 * Math.random());
-  }
-  
-  const hue = 0.7 + i * 0.02;
-  const material = new THREE.MeshBasicMaterial({
-    color: new THREE.Color().setHSL(hue, 0.5, 0.15 + i * 0.03),
-    transparent: true, opacity: 0.06, side: THREE.DoubleSide, blending: THREE.AdditiveBlending
-  });
-  
-  const cloud = new THREE.Mesh(geometry, material);
-  cloud.position.set((Math.random() - 0.5) * 200, 45 + i * 30, -450 - i * 110);
-  cloud.rotation.x = -0.15;
-  scene.add(cloud);
-  atmosphericClouds.push(cloud);
-}
-
-const groundGeo = new THREE.PlaneGeometry(2500, 800);
-const groundMat = new THREE.MeshBasicMaterial({ color: 0x050510, transparent: true, opacity: 0.9 });
-const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.position.set(0, -120, -250);
-ground.rotation.x = -Math.PI / 2;
-scene.add(ground);
-
-const horizonGeo = new THREE.PlaneGeometry(2500, 250);
-const horizonMat = new THREE.MeshBasicMaterial({
-  color: 0x3a1560, transparent: true, opacity: 0.4, side: THREE.DoubleSide
-});
-const horizon = new THREE.Mesh(horizonGeo, horizonMat);
-horizon.position.set(0, 10, -600);
-scene.add(horizon);
-
-// ===== PHẦN GALAXY ẨN (SẼ HIỆN KHI AWAKEN) =====
-let awakened = false, transitioning = false;
-const galaxy = new THREE.Group();
-galaxy.visible = false;
-scene.add(galaxy);
-
-function createGalaxyNebula() {
-  const geometry = new THREE.BufferGeometry();
-  const count = 2000;
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const sizes = new Float32Array(count);
-  
-  const nebulaColors = [[0.3, 0.5, 1.0], [0.8, 0.3, 1.0], [1.0, 0.4, 0.8], [0.4, 0.8, 1.0]];
-  
-  for (let i = 0; i < count; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    const r = 50 + Math.random() * 200;
-    
-    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-    positions[i * 3 + 1] = (Math.random() - 0.5) * 100;
-    positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-    
-    const color = nebulaColors[Math.floor(Math.random() * nebulaColors.length)];
-    colors[i * 3] = color[0]; colors[i * 3 + 1] = color[1]; colors[i * 3 + 2] = color[2];
-    sizes[i] = 40 + Math.random() * 120;
-  }
-  
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-  
-  const material = new THREE.PointsMaterial({
-    size: 80, map: starGlowTex, vertexColors: true, blending: THREE.AdditiveBlending,
-    transparent: true, opacity: 0.25, depthWrite: false
-  });
-  
-  return new THREE.Points(geometry, material);
-}
-const galaxyNebula = createGalaxyNebula();
-galaxy.add(galaxyNebula);
-
-// Hàm đã được sửa chữa và nối lại hoàn chỉnh
-function createGalaxySpiral() {
-  const geometry = new THREE.BufferGeometry();
-  const count = 15000;
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const sizes = new Float32Array(count);
-  
-  for (let i = 0; i < count; i++) {
-    const armIndex = Math.floor(Math.random() * 4);
-    const armAngle = (armIndex * Math.PI * 2) / 4;
-    const t = Math.random();
-    const radius = 15 + t * 160;
-    const spinAngle = radius * 0.09;
-    const angle = armAngle + spinAngle;
-    
-    const x = Math.cos(angle) * radius + (Math.random() - 0.5) * 10;
-    const y = (Math.random() - 0.5) * 18 * (1 - t * 0.6);
-    const z = Math.sin(angle) * radius + (Math.random() - 0.5) * 10;
-    
-    positions[i * 3] = x; positions[i * 3 + 1] = y; positions[i * 3 + 2] = z;
-    
-    const coreDistance = radius / 160;
-    const coreBrightness = 1 - coreDistance;
-    
-    colors[i * 3] = 0.9 + coreBrightness * 0.1;
-    colors[i * 3 + 1] = 0.8 + Math.random() * 0.2 - coreDistance * 0.3;
-    colors[i * 3 + 2] = 0.7 + coreDistance * 0.3;
-    sizes[i] = 2.5 + (1 - coreDistance) * 4;
-  }
-  
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-  
-  // Phần mã bị ngắt quãng trước đó đã được phục hồi tại đây
-  const material = new THREE.PointsMaterial({
-    size: 3.5, map: starGlowTex, vertexColors: true,
-    blending: THREE.AdditiveBlending, transparent: true, depthWrite: false
-  });
-  
-  return new THREE.Points(geometry, material);
-}
-const spiral = createGalaxySpiral();
-galaxy.add(spiral);
-
-const coreGeo = new THREE.SphereGeometry(12, 32, 32);
-const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffee, transparent: true, opacity: 0.9 });
-const core = new THREE.Mesh(coreGeo, coreMat);
-galaxy.add(core);
-
-for (let i = 0; i < 3; i++) {
-  const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: warmGlowTex,
-    color: i === 0 ? 0xffffee : i === 1 ? 0xffccee : 0xaaccff,
-    blending: THREE.AdditiveBlending, transparent: true, opacity: 0.7 - i * 0.2
-  }));
-  glowSprite.scale.set(80 + i * 40, 80 + i * 40, 1);
-  galaxy.add(glowSprite);
-}
-
-// ===== XỬ LÝ HÌNH ẢNH =====
-const images = [];
-const imgUrls = [];
-for (let i = 1; i <= 10; i++) imgUrls.push(`space${i}.png`);
-
-const loader = new THREE.TextureLoader();
-let loadedCount = 0;
-
-// Xử lý tải ảnh (Nếu không có ảnh space1.png... thì sẽ bỏ qua để không lỗi)
-imgUrls.forEach((url, i) => {
-  loader.load(url, (texture) => {
-    const aspect = texture.image.width / texture.image.height;
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(22 * aspect, 22),
-      new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0, side: THREE.DoubleSide })
-    );
-    
-    // Viền sáng ngoài
-    const glowBorder = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: bokehTex, color: 0xaaccff, blending: THREE.AdditiveBlending, transparent: true, opacity: 0
-    }));
-    glowBorder.scale.set(26 * aspect, 26, 1);
-    glowBorder.position.z = -0.5;
-    mesh.add(glowBorder);
-    
-    // Ánh sáng sâu phía sau
-    const deepGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: starGlowTex, color: 0x6688ff, blending: THREE.AdditiveBlending, transparent: true, opacity: 0
-    }));
-    deepGlow.scale.set(35 * aspect, 35, 1);
-    deepGlow.position.z = -1;
-    mesh.add(deepGlow);
-    
-    mesh.userData = {
-      angle: (i / imgUrls.length) * Math.PI * 2,
-      radius: 65 + (i % 3) * 18,
-      speed: 0.0007 + Math.random() * 0.0005,
-      yOffset: Math.sin(i) * 22,
-      depthOffset: (i % 4) * 8,
-      fadeDelay: i * 0.15,
-      fadeProgress: 0,
-      glow: glowBorder,
-      deepGlow: deepGlow
-    };
-    
-    galaxy.add(mesh);
-    images.push(mesh);
-    
-    loadedCount++;
-    if (loadedCount === imgUrls.length) {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('hint').style.opacity = 1;
-    }
-  }, undefined, () => {
-    // Nếu lỗi tải ảnh, vẫn tiếp tục đếm để ẩn loading
-    loadedCount++;
-    if (loadedCount === imgUrls.length) {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('hint').style.opacity = 1;
-    }
-  });
-});
-
-const ambientLight = new THREE.AmbientLight(0x5577aa, 0.35);
-scene.add(ambientLight);
-const pointLight = new THREE.PointLight(0xaabbff, 1.6, 1200);
-pointLight.position.set(0, 180, 350);
-scene.add(pointLight);
-const galaxyLight = new THREE.PointLight(0xffeecc, 2.5, 250);
-galaxyLight.visible = false;
-galaxy.add(galaxyLight);
-
-// ===== HIỆU ỨNG CHUYỂN CẢNH =====
-function transitionToGalaxy() {
-  if (awakened || transitioning) return;
-  transitioning = true; awakened = true;
-  document.getElementById('hint').style.opacity = 0;
-  
-  const startPos = camera.position.clone();
-  const startLookAt = new THREE.Vector3(0, 40, 0);
-  const endPos = new THREE.Vector3(0, 0, 220);
-  const endLookAt = new THREE.Vector3(0, 0, 0);
-  const duration = 2600;
-  const startTime = performance.now();
-
-  galaxy.visible = true;
-  galaxyLight.visible = true;
-
-  function animateTransition(now) {
-    const t = Math.min((now - startTime) / duration, 1);
-    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-
-    camera.position.lerpVectors(startPos, endPos, ease);
-    const lookAt = startLookAt.clone().lerp(endLookAt, ease);
-    camera.lookAt(lookAt);
-
-    sky.material.opacity = 1 - ease;
-    deepStars.material.uniforms.time.value += 0.01;
-    bgStars.material.uniforms.time.value += 0.01;
-    midStars.material.uniforms.time.value += 0.015;
-    fgStars.material.uniforms.time.value += 0.015;
-    brightStars.material.uniforms.time.value += 0.02;
-
-    if (t < 1) {
-      requestAnimationFrame(animateTransition);
-    } else {
-      transitioning = false;
-      document.getElementById('backHint').style.opacity = 1;
-    }
-  }
-  requestAnimationFrame(animateTransition);
-}
-
-/* ====== TƯƠNG TÁC (chạm / giữ / kéo / xoay) ====== */
-let isDragging = false;
-let lastX = 0, lastY = 0;
-let rotationSpeed = { x: 0, y: 0 };
-
-renderer.domElement.addEventListener('pointerdown', e => {
-  if (!awakened) {
-    transitionToGalaxy();
-    return;
-  }
-  isDragging = true;
-  lastX = e.clientX;
-  lastY = e.clientY;
-});
-
-renderer.domElement.addEventListener('pointermove', e => {
-  if (!isDragging) return;
-  const dx = e.clientX - lastX;
-  const dy = e.clientY - lastY;
-  rotationSpeed.y = dx * 0.0006;
-  rotationSpeed.x = dy * 0.0006;
-  lastX = e.clientX;
-  lastY = e.clientY;
-});
-
-renderer.domElement.addEventListener('pointerup', () => {
-  isDragging = false;
-});
-
-renderer.domElement.addEventListener('contextmenu', e => {
-  e.preventDefault();
-  awakened = false;
-  galaxy.visible = false;
-  galaxyLight.visible = false;
-  document.getElementById('hint').style.opacity = 1;
-  document.getElementById('backHint').style.opacity = 0;
-  camera.position.set(0, 20, 100);
-  camera.lookAt(0, 40, 0);
-  sky.material.opacity = 1;
-});
-
-/* ====== VÒNG LẶP ANIMATION CHÍNH ====== */
-let galaxyTime = 0;
-const cameraBreathing = { x: 0, y: 0, phase: Math.random() * Math.PI * 2 };
-
-function animate() {
-  requestAnimationFrame(animate);
-  
-  const time = performance.now() * 0.001;
-
-  // Cập nhật các tầng sao
-  deepStars.material.uniforms.time.value += 0.001;
-  
-  bgStars.material.uniforms.time.value += 0.003;
-  bgStars.position.x += bgStars.userData.driftSpeed * Math.sin(time * 0.2);
-  bgStars.position.y += bgStars.userData.driftSpeed * Math.cos(time * 0.15);
-  
-  midStars.material.uniforms.time.value += 0.004;
-  midStars.position.x += midStars.userData.driftSpeed * Math.sin(time * 0.25);
-  
-  fgStars.material.uniforms.time.value += 0.005;
-  fgStars.position.x += fgStars.userData.driftSpeed * Math.cos(time * 0.3);
-  fgStars.position.y += fgStars.userData.driftSpeed * Math.sin(time * 0.22);
-  
-  brightStars.material.uniforms.time.value += 0.006;
-  brightStars.position.x += brightStars.userData.driftSpeed * Math.sin(time * 0.28);
-
-  // Bụi vũ trụ chuyển động
-  cosmicDust.children.forEach((dust, i) => {
-    dust.userData.driftPhase += dust.userData.driftSpeed * 0.001;
-    dust.position.x = Math.sin(dust.userData.driftPhase) * 150;
-    dust.position.y += Math.cos(time * 0.1 + i) * 0.01;
-  });
-
-  // Sao băng
-  meteors.forEach(m => {
-    m.position.addScaledVector(m.userData.direction, m.userData.speed);
-    if (m.position.z < -1200) {
-      m.position.set(Math.random() * 700 - 350, 200 + Math.random() * 250, -300);
-    }
-  });
-
-  // Mây khí quyển
-  atmosphericClouds.forEach((c, i) => {
-    c.position.x += Math.sin(time * 0.2 + i) * 0.02;
-  });
-
-  if (galaxy.visible) {
-    galaxyTime += 0.016;
-    
-    // ===== HOI THỞ CỦA CAMERA =====
-    cameraBreathing.phase += 0.008;
-    cameraBreathing.x = Math.sin(cameraBreathing.phase) * 1.5;
-    cameraBreathing.y = Math.cos(cameraBreathing.phase * 0.7) * 0.8;
-    
-    camera.position.x += (cameraBreathing.x - camera.position.x + camera.position.x * 0.001) * 0.02;
-    camera.position.y += (cameraBreathing.y - camera.position.y + camera.position.y * 0.001) * 0.02;
-    
-    galaxy.rotation.y += rotationSpeed.y;
-    galaxy.rotation.x += rotationSpeed.x;
-    rotationSpeed.x *= 0.92;
-    rotationSpeed.y *= 0.92;
-
-    // ===== HÌNH ẢNH XUẤT HIỆN TỪ TỪ =====
-    images.forEach((img, i) => {
-      const d = img.userData;
-      d.angle += d.speed;
-      
-      const depthWave = Math.sin(d.angle * 1.5) * d.depthOffset;
-      img.position.set(
-        Math.cos(d.angle) * d.radius,
-        d.yOffset + Math.sin(d.angle * 2) * 6,
-        Math.sin(d.angle) * d.radius + depthWave
-      );
-
-      if (galaxyTime > d.fadeDelay) {
-        d.fadeProgress = Math.min(d.fadeProgress + 0.012, 1);
-        const ease = d.fadeProgress < 0.5 
-          ? 2 * d.fadeProgress * d.fadeProgress 
-          : 1 - Math.pow(-2 * d.fadeProgress + 2, 2) / 2;
+        // ============================================================================
+        // 1. CẤU HÌNH & KHỞI TẠO (SETUP)
+        // ============================================================================
         
-        img.material.opacity = ease;
-        d.glow.material.opacity = ease * 0.6;
-        d.deepGlow.material.opacity = ease * 0.3;
-      }
-      
-      img.lookAt(camera.position);
-    });
-  } else {
-    // Hơi thở khi ở chế độ đêm
-    cameraBreathing.phase += 0.004;
-    const breathX = Math.sin(cameraBreathing.phase) * 0.5;
-    const breathY = Math.cos(cameraBreathing.phase * 0.6) * 0.3;
-    camera.position.x += (breathX - camera.position.x) * 0.01;
-    camera.position.y += (20 + breathY - camera.position.y) * 0.01;
-  }
+        const scene = new THREE.Scene();
+        // Sương mù sâu hơn, màu tím than để Bloom nổi bật
+        scene.fog = new THREE.FogExp2(0x050210, 0.0006);
 
-  renderer.render(scene, camera);
-}
-animate();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
+        camera.position.set(0, 20, 100); // Vị trí ban đầu ở mặt đất
+        camera.lookAt(0, 40, 0);
 
-/* ====== RESIZE ====== */
-window.addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
-</script>
+        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance", stencil: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Tối ưu hiệu năng
+        renderer.toneMapping = THREE.ReinhardToneMapping; // Tone mapping giúp màu không bị cháy khi Bloom
+        document.body.appendChild(renderer.domElement);
+
+        // --- POST-PROCESSING (BÍ MẬT CỦA VẺ ĐẸP) ---
+        const renderScene = new RenderPass(scene, camera);
+        
+        // Hiệu ứng Bloom (Lóa sáng)
+        const bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            1.5, // Strength (Độ mạnh)
+            0.4, // Radius (Bán kính)
+            0.85 // Threshold (Ngưỡng sáng - chỉ vật rất sáng mới lóa)
+        );
+
+        const composer = new EffectComposer(renderer);
+        composer.addPass(renderScene);
+        composer.addPass(bloomPass);
+
+        // ============================================================================
+        // 2. TEXTURE GENERATORS (TẠO TEXTURE BẰNG CODE)
+        // ============================================================================
+
+        function createTexture(type) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            const cx = 64, cy = 64;
+
+            if (type === 'glow') {
+                const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 64);
+                g.addColorStop(0, 'rgba(255,255,255,1)');
+                g.addColorStop(0.2, 'rgba(240,240,255,0.6)');
+                g.addColorStop(0.5, 'rgba(100,100,255,0.1)');
+                g.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(0,0,128,128);
+            } else if (type === 'flare') {
+                ctx.fillStyle = 'rgba(0,0,0,0)'; ctx.fillRect(0,0,128,128);
+                // Ngôi sao 4 cánh
+                const g = ctx.createRadialGradient(cx,cy,0, cx,cy,64);
+                g.addColorStop(0, 'rgba(255,255,255,1)');
+                g.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = g; ctx.fillRect(40,40,48,48); // Tâm
+                
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.fillRect(0, 62, 128, 4); // Ngang
+                ctx.fillRect(62, 0, 4, 128); // Dọc
+            } else if (type === 'dust') {
+                // Tạo noise cho bụi
+                const imgData = ctx.createImageData(128,128);
+                for(let i=0; i<imgData.data.length; i+=4) {
+                    const v = Math.random() * 255;
+                    imgData.data[i] = v > 200 ? 100 : 50;   // R
+                    imgData.data[i+1] = v > 200 ? 80 : 40;  // G
+                    imgData.data[i+2] = v > 200 ? 150 : 80; // B
+                    imgData.data[i+3] = Math.random() > 0.9 ? Math.random()*100 : 0; // Alpha
+                }
+                ctx.putImageData(imgData, 0, 0);
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const texGlow = createTexture('glow');
+        const texFlare = createTexture('flare');
+        const texDust = createTexture('dust');
+
+        // ============================================================================
+        // 3. XÂY DỰNG MÔI TRƯỜNG (ENVIRONMENT)
+        // ============================================================================
+
+        // --- BẦU TRỜI ---
+        const skyGeo = new THREE.SphereGeometry(4000, 32, 32);
+        const skyMat = new THREE.ShaderMaterial({
+            uniforms: {
+                topColor: { value: new THREE.Color(0x050210) },
+                bottomColor: { value: new THREE.Color(0x1a0a30) },
+                offset: { value: 33 },
+                exponent: { value: 0.6 }
+            },
+            vertexShader: `
+                varying vec3 vWorldPosition;
+                void main() {
+                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                    vWorldPosition = worldPosition.xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 topColor;
+                uniform vec3 bottomColor;
+                uniform float offset;
+                uniform float exponent;
+                varying vec3 vWorldPosition;
+                void main() {
+                    float h = normalize(vWorldPosition + offset).y;
+                    gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
+                }
+            `,
+            side: THREE.BackSide
+        });
+        const sky = new THREE.Mesh(skyGeo, skyMat);
+        scene.add(sky);
+
+        // --- HỆ THỐNG SAO ĐA TẦNG (STARFIELD SYSTEM) ---
+        // Giữ nguyên logic chia tầng sao để tạo độ sâu 3D thật
+        function createStarLayer(count, size, rangeY, depthOffset, speed, useFlare) {
+            const geo = new THREE.BufferGeometry();
+            const pos = [];
+            const col = [];
+            const sizes = [];
+
+            for(let i=0; i<count; i++) {
+                const r = 500 + Math.random() * 2500;
+                const theta = Math.random() * Math.PI * 2;
+                
+                // Phân bố hình cầu nhưng dẹt ở trục Y
+                const x = Math.cos(theta) * r;
+                const y = (Math.random() - 0.5) * rangeY;
+                const z = Math.sin(theta) * r + depthOffset;
+
+                pos.push(x, y, z);
+
+                // Màu sắc ngẫu nhiên kiểu thiên văn (Xanh, Vàng, Trắng)
+                const c = new THREE.Color();
+                c.setHSL(Math.random() * 0.2 + 0.5, 0.8, Math.random() * 0.5 + 0.5);
+                col.push(c.r, c.g, c.b);
+
+                sizes.push(size * (0.8 + Math.random() * 0.4));
+            }
+
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+            geo.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+
+            const mat = new THREE.PointsMaterial({
+                size: size,
+                map: useFlare ? texFlare : texGlow,
+                vertexColors: true,
+                transparent: true,
+                opacity: useFlare ? 0.9 : 0.6,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            const points = new THREE.Points(geo, mat);
+            points.userData = { speed: speed };
+            return points;
+        }
+
+        const starLayers = [];
+        starLayers.push(createStarLayer(5000, 4, 1500, -500, 0.0002, false)); // Nền xa
+        starLayers.push(createStarLayer(2000, 6, 1200, 0, 0.0005, false));    // Trung cảnh
+        starLayers.push(createStarLayer(200, 15, 1000, 200, 0.0008, true));   // Sao sáng gần
+        starLayers.forEach(l => scene.add(l));
+
+        // --- BỤI VŨ TRỤ (COSMIC DUST) ---
+        const dustGroup = new THREE.Group();
+        for(let i=0; i<4; i++) {
+            const geo = new THREE.PlaneGeometry(3000, 2000);
+            const mat = new THREE.MeshBasicMaterial({
+                map: texDust,
+                transparent: true,
+                opacity: 0.05 - i * 0.01,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(0, 100 + i*50, -800 - i*200);
+            mesh.rotation.x = -0.2;
+            mesh.userData = { speed: 0.005 + i * 0.002, offset: Math.random() * 100 };
+            dustGroup.add(mesh);
+        }
+        scene.add(dustGroup);
+
+        // --- MẶT ĐẤT VÀ CHÂN TRỜI (GROUND & HORIZON) ---
+        const groundGeo = new THREE.PlaneGeometry(5000, 2000, 64, 64);
+        // Làm mặt đất mấp mô nhẹ
+        const posAttr = groundGeo.attributes.position;
+        for(let i=0; i<posAttr.count; i++) {
+            posAttr.setZ(i, posAttr.getZ(i) + Math.random() * 20);
+        }
+        const groundMat = new THREE.MeshBasicMaterial({ color: 0x030308, transparent: true, opacity: 0.95 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -100;
+        scene.add(ground);
+
+        // ============================================================================
+        // 4. THIÊN HÀ XOẮN ỐC & NỘI DUNG CHÍNH (GALAXY CORE)
+        // ============================================================================
+        
+        const galaxyGroup = new THREE.Group();
+        galaxyGroup.visible = false;
+        scene.add(galaxyGroup);
+
+        // --- TẠO XOẮN ỐC (SPIRAL) ---
+        // Giữ nguyên thuật toán tạo hình xoắn ốc phức tạp
+        function createSpiralGalaxy() {
+            const particleCount = 20000;
+            const geo = new THREE.BufferGeometry();
+            const pos = [];
+            const col = [];
+            
+            // Các màu đặc trưng của Galaxy (Neon Style để hợp với Bloom)
+            const colors = [
+                new THREE.Color(0x00ffff), // Cyan
+                new THREE.Color(0xff00ff), // Magenta
+                new THREE.Color(0x4444ff), // Blue
+                new THREE.Color(0xffaa00)  // Orange
+            ];
+
+            for(let i=0; i<particleCount; i++) {
+                const branchAngle = (i % 3) * ((Math.PI * 2) / 3);
+                const radius = Math.random() * 300 + 20;
+                const spinAngle = radius * 0.01; // Xoắn càng ra xa càng cong
+                const randomX = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 30;
+                const randomY = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 30;
+                const randomZ = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 30;
+
+                const angle = branchAngle + spinAngle;
+                
+                const x = Math.cos(angle) * radius + randomX;
+                const y = (Math.random() - 0.5) * (300 - radius)/5 + randomY; // Mỏng dần ra rìa
+                const z = Math.sin(angle) * radius + randomZ;
+
+                pos.push(x, y, z);
+
+                // Trộn màu
+                const colorInside = new THREE.Color(0xffffff); // Tâm trắng
+                const colorOutside = colors[i % colors.length];
+                const mixedColor = colorInside.clone().lerp(colorOutside, radius / 300);
+                
+                // Tăng độ sáng màu để Bloom bắt được
+                mixedColor.multiplyScalar(1.5); 
+
+                col.push(mixedColor.r, mixedColor.g, mixedColor.b);
+            }
+
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+
+            const mat = new THREE.PointsMaterial({
+                size: 3,
+                map: texGlow,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            return new THREE.Points(geo, mat);
+        }
+        
+        const spiral = createSpiralGalaxy();
+        galaxyGroup.add(spiral);
+
+        // --- TÂM GALAXY (CORE) ---
+        // Một khối cầu cực sáng ở giữa
+        const coreLight = new THREE.PointLight(0xffaa00, 2, 1000);
+        galaxyGroup.add(coreLight);
+        const coreMesh = new THREE.Mesh(
+            new THREE.SphereGeometry(10, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0xffffee })
+        );
+        galaxyGroup.add(coreMesh);
+        // Hào quang tâm
+        const coreGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: texGlow, color: 0xffaa55, blending: THREE.AdditiveBlending, transparent: true
+        }));
+        coreGlow.scale.set(120, 120, 1);
+        galaxyGroup.add(coreGlow);
+
+        // --- CÁC HÌNH ẢNH BAY (FLOATING CARDS) ---
+        // Tự tạo Canvas Texture thay vì load ảnh để tránh lỗi
+        const cardGroup = new THREE.Group();
+        galaxyGroup.add(cardGroup);
+
+        function createCardTexture(idx) {
+            const cvs = document.createElement('canvas');
+            cvs.width = 300; cvs.height = 400;
+            const ctx = cvs.getContext('2d');
+            // Gradient nền
+            const g = ctx.createLinearGradient(0,0,300,400);
+            g.addColorStop(0, `hsl(${idx*40}, 70%, 20%)`);
+            g.addColorStop(1, `hsl(${idx*40}, 70%, 10%)`);
+            ctx.fillStyle = g; ctx.fillRect(0,0,300,400);
+            // Viền
+            ctx.strokeStyle = `hsl(${idx*40}, 100%, 70%)`; ctx.lineWidth = 10;
+            ctx.strokeRect(5,5,290,390);
+            // Chữ
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 60px Arial'; ctx.textAlign = 'center';
+            ctx.fillText((idx+1).toString().padStart(2,'0'), 150, 150);
+            ctx.font = '30px Arial';
+            ctx.fillText("UNIVERSE", 150, 220);
+            return new THREE.CanvasTexture(cvs);
+        }
+
+        const cards = [];
+        for(let i=0; i<8; i++) {
+            const tex = createCardTexture(i);
+            const geo = new THREE.PlaneGeometry(30, 40);
+            const mat = new THREE.MeshBasicMaterial({ 
+                map: tex, side: THREE.DoubleSide, transparent: true, opacity: 0 
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            
+            // Xếp thành vòng tròn
+            const angle = (i / 8) * Math.PI * 2;
+            mesh.position.set(Math.cos(angle) * 150, Math.sin(angle * 2) * 30, Math.sin(angle) * 150);
+            mesh.lookAt(0,0,0);
+            
+            mesh.userData = { 
+                angle: angle, 
+                dist: 150, 
+                speed: 0.002, 
+                baseY: mesh.position.y 
+            };
+            
+            cardGroup.add(mesh);
+            cards.push(mesh);
+        }
+
+        // --- SAO BĂNG (METEORS) ---
+        const meteors = [];
+        function spawnMeteor() {
+            const headGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0)]);
+            const headMat = new THREE.PointsMaterial({
+                color: 0xffffff, size: 8, map: texFlare, 
+                transparent: true, blending: THREE.AdditiveBlending
+            });
+            const head = new THREE.Points(headGeo, headMat);
+
+            // Đuôi sao băng (Line)
+            const tailPoints = [];
+            for(let i=0; i<20; i++) tailPoints.push(new THREE.Vector3(-i*2, i, 0));
+            const tailGeo = new THREE.BufferGeometry().setFromPoints(tailPoints);
+            const tailMat = new THREE.LineBasicMaterial({
+                color: 0xaaccff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending
+            });
+            const tail = new THREE.Line(tailGeo, tailMat);
+            
+            const group = new THREE.Group();
+            group.add(head);
+            group.add(tail);
+            group.visible = false;
+            
+            scene.add(group);
+            return { mesh: group, speed: 0, active: false };
+        }
+        for(let i=0; i<10; i++) meteors.push(spawnMeteor());
+
+        // ============================================================================
+        // 5. LOGIC ĐIỀU KHIỂN & ANIMATION
+        // ============================================================================
+        
+        // Ẩn màn hình loading
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('hint').style.opacity = 1;
+
+        let state = 'GROUND'; // GROUND -> TRANSITION -> SPACE
+        let time = 0;
+        let transitionProgress = 0;
+        
+        // Tương tác chuột
+        let mouseX = 0, mouseY = 0;
+        let targetRotX = 0, targetRotY = 0;
+        
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX - window.innerWidth/2) * 0.001;
+            mouseY = (e.clientY - window.innerHeight/2) * 0.001;
+        });
+
+        // Hàm kích hoạt
+        function awaken() {
+            if (state !== 'GROUND') return;
+            state = 'TRANSITION';
+            document.getElementById('hint').style.opacity = 0;
+            
+            // Hiện Galaxy để chuẩn bị bay đến
+            galaxyGroup.visible = true;
+            galaxyGroup.scale.set(0.01, 0.01, 0.01);
+
+            // Tăng Bloom lên cực đại để làm lóa mắt khi chuyển cảnh
+            bloomPass.strength = 3.0;
+            bloomPass.radius = 1.0;
+        }
+
+        // Hàm quay về
+        function reset() {
+            if (state !== 'SPACE') return;
+            state = 'GROUND';
+            galaxyGroup.visible = false;
+            document.getElementById('hint').style.opacity = 1;
+            document.getElementById('backHint').style.opacity = 0;
+            
+            // Reset Camera
+            camera.position.set(0, 20, 100);
+            camera.lookAt(0, 40, 0);
+            sky.material.uniforms.topColor.value.setHex(0x050210);
+            
+            // Reset Bloom
+            bloomPass.strength = 1.5;
+            bloomPass.radius = 0.4;
+        }
+
+        window.addEventListener('mousedown', awaken);
+        window.addEventListener('touchstart', awaken);
+        window.addEventListener('contextmenu', (e) => { e.preventDefault(); reset(); });
+
+        // --- VÒNG LẶP RENDER ---
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.01;
+
+            // 1. ANIMATION CƠ BẢN (LUÔN CHẠY)
+            starLayers.forEach((l, i) => {
+                l.rotation.y += l.userData.speed;
+                // Sao nhấp nháy
+                if (i === 2) l.material.opacity = 0.8 + Math.sin(time * 3) * 0.2;
+            });
+            
+            dustGroup.children.forEach(d => {
+                d.position.x = Math.sin(time * 0.2 + d.userData.offset) * 50;
+                d.position.y += Math.cos(time * 0.1) * 0.1;
+            });
+
+            // 2. LOGIC THEO TRẠNG THÁI
+            if (state === 'GROUND') {
+                // Camera thở nhẹ
+                camera.position.y = 20 + Math.sin(time) * 2;
+                camera.position.x += (mouseX * 50 - camera.position.x) * 0.05;
+                camera.position.z = 100 + Math.cos(time * 0.5) * 5;
+                camera.lookAt(0, 40 + mouseY * 20, 0);
+
+            } else if (state === 'TRANSITION') {
+                transitionProgress += 0.008;
+                const t = Math.min(transitionProgress, 1);
+                // Hiệu ứng tăng tốc (Exponential Ease In)
+                const ease = t === 1 ? 1 : Math.pow(2, 10 * t - 10);
+
+                // Camera lao vút lên trời
+                const targetPos = new THREE.Vector3(0, 50, 400); // Vị trí ngắm Galaxy
+                camera.position.lerp(targetPos, 0.02 + ease * 0.05);
+                
+                // Galaxy phóng to ra
+                const scale = 0.01 + ease * 0.99;
+                galaxyGroup.scale.set(scale, scale, scale);
+
+                // Trời sáng hơn (màu tím không gian)
+                sky.material.uniforms.topColor.value.lerp(new THREE.Color(0x220044), 0.01);
+
+                // Giảm Bloom dần về mức ổn định
+                if (bloomPass.strength > 1.8) bloomPass.strength -= 0.02;
+
+                if (t >= 1 && camera.position.z > 350) {
+                    state = 'SPACE';
+                    transitionProgress = 0;
+                    document.getElementById('backHint').style.opacity = 1;
+                    bloomPass.strength = 1.8; // Chốt mức bloom đẹp
+                }
+
+            } else if (state === 'SPACE') {
+                // Điều khiển Camera/Galaxy bằng chuột
+                galaxyGroup.rotation.y += 0.001; // Tự quay
+                
+                // Nghiêng theo chuột
+                targetRotX = mouseY * 0.5;
+                targetRotY = mouseX * 0.5;
+                galaxyGroup.rotation.x += (targetRotX - galaxyGroup.rotation.x) * 0.05;
+                galaxyGroup.rotation.z += (targetRotY * 0.5 - galaxyGroup.rotation.z) * 0.05;
+
+                // Animation nội bộ Galaxy
+                spiral.rotation.y -= 0.002;
+                
+                // Cards bay vòng quanh
+                cards.forEach((c, i) => {
+                    c.material.opacity = Math.min(c.material.opacity + 0.01, 1); // Hiện dần
+                    c.userData.angle += c.userData.speed;
+                    const r = c.userData.dist;
+                    c.position.x = Math.cos(c.userData.angle) * r;
+                    c.position.z = Math.sin(c.userData.angle) * r;
+                    // Lượn sóng
+                    c.position.y = c.userData.baseY + Math.sin(time * 2 + i) * 10;
+                    c.lookAt(camera.position);
+                });
+            }
+
+            // 3. SAO BĂNG (CHẠY NGẪU NHIÊN Ở MỌI TRẠNG THÁI)
+            meteors.forEach(m => {
+                if (!m.active) {
+                    if (Math.random() < 0.005) { // 0.5% cơ hội xuất hiện mỗi frame
+                        m.active = true;
+                        m.mesh.visible = true;
+                        // Xuất hiện ngẫu nhiên trên trời
+                        m.mesh.position.set(
+                            (Math.random() - 0.5) * 1000,
+                            Math.random() * 500 + 200,
+                            (Math.random() - 0.5) * 500 - 500
+                        );
+                        m.speed = 5 + Math.random() * 5;
+                    }
+                } else {
+                    m.mesh.position.x -= m.speed;
+                    m.mesh.position.y -= m.speed * 0.5;
+                    if (m.mesh.position.y < -100 || m.mesh.position.x < -1000) {
+                        m.active = false;
+                        m.mesh.visible = false;
+                    }
+                }
+            });
+
+            // 4. RENDER CUỐI CÙNG
+            composer.render();
+        }
+
+        // Resize màn hình
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+    </script>
 </body>
 </html>
