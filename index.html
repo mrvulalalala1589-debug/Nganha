@@ -209,11 +209,17 @@
             margin-top: 15px;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
             letter-spacing: 0.05em;
+            line-height: 1.6;
         }
 
         .gesture-guide span {
             color: #00ffff;
             font-weight: 700;
+        }
+
+        .gesture-guide .control-row {
+            display: block;
+            margin: 5px 0;
         }
 
         /* Camera Preview */
@@ -296,7 +302,47 @@
             50% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.6); }
         }
 
-        /* Photo Counter */
+        /* Photo Navigation Arrows */
+        .photo-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid rgba(0, 255, 255, 0.5);
+            color: #00ffff;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            transition: all 0.3s ease;
+            z-index: 150;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .photo-nav.visible {
+            opacity: 0.7;
+            pointer-events: auto;
+        }
+
+        .photo-nav:hover {
+            opacity: 1;
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        #nav-left {
+            left: 30px;
+        }
+
+        #nav-right {
+            right: 30px;
+        }
         #photo-counter {
             position: absolute;
             top: 30px;
@@ -411,11 +457,21 @@
     <div id="ui-layer" style="display: none;">
         <div id="status-badge">🌌 KHÁM PHÁ VŨ TRỤ 🌌</div>
         <div class="gesture-guide">
-            <span>✊ NẮM TAY:</span> Thu Galaxy &nbsp;|&nbsp; 
-            <span>🖐 XÒE TAY:</span> Bung Hành Tinh &nbsp;|&nbsp; 
-            <span>👉 PHẤT TAY:</span> Lướt Ảnh
+            <div class="control-row">
+                <span>✊ NẮM TAY / SPACE:</span> Thu/Bung Galaxy
+            </div>
+            <div class="control-row">
+                <span>🖱️ GIỮ CHUỘT + KÉO:</span> Lướt Ảnh
+            </div>
+            <div class="control-row">
+                <span>☝️ DƠ TRÁI/PHẢI / ← →:</span> Chuyển Ảnh
+            </div>
         </div>
     </div>
+
+    <!-- Photo Navigation Arrows -->
+    <div id="nav-left" class="photo-nav" onclick="prevPhoto()">‹</div>
+    <div id="nav-right" class="photo-nav" onclick="nextPhoto()">›</div>
 
     <!-- Photo Counter -->
     <div id="photo-counter">1 / 10</div>
@@ -456,6 +512,8 @@
             // Photos
             photoCount: 10,
             photoOrbitRadius: 30,
+            photoMaxScale: 3.5,  // Giảm từ 6 xuống 3.5 để không tràn màn hình
+            photoTransitionSpeed: 0.6, // Tốc độ chuyển ảnh chậm hơn
             
             // States
             explodeRadius: 70,
@@ -463,7 +521,8 @@
             
             // Animation
             rotationSpeed: 0.001,
-            swipeThreshold: 0.15
+            pointingThreshold: 0.3, // Ngưỡng nhận diện dơ ngón tay
+            pointingCooldown: 500 // ms giữa các lần chuyển ảnh
         };
 
         const MUSIC_URL = "./audio.mp3";
@@ -490,7 +549,45 @@
         let currentPhotoIndex = 0;
         let handX = 0.5;
         let prevHandX = 0.5;
-        let swipeVelocity = 0;
+        let lastPhotoChangeTime = 0;
+        
+        // Mouse/Touch controls
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragThreshold = 50;
+
+        // ==========================================
+        // PHOTO NAVIGATION
+        // ==========================================
+        function nextPhoto() {
+            const now = Date.now();
+            if(now - lastPhotoChangeTime < CONFIG.pointingCooldown) return;
+            
+            currentPhotoIndex = (currentPhotoIndex + 1) % CONFIG.photoCount;
+            lastPhotoChangeTime = now;
+            
+            // Visual feedback
+            const btn = document.getElementById('nav-right');
+            btn.style.transform = 'translateY(-50%) scale(1.3)';
+            setTimeout(() => {
+                btn.style.transform = 'translateY(-50%) scale(1)';
+            }, 200);
+        }
+
+        function prevPhoto() {
+            const now = Date.now();
+            if(now - lastPhotoChangeTime < CONFIG.pointingCooldown) return;
+            
+            currentPhotoIndex = (currentPhotoIndex - 1 + CONFIG.photoCount) % CONFIG.photoCount;
+            lastPhotoChangeTime = now;
+            
+            // Visual feedback
+            const btn = document.getElementById('nav-left');
+            btn.style.transform = 'translateY(-50%) scale(1.3)';
+            setTimeout(() => {
+                btn.style.transform = 'translateY(-50%) scale(1)';
+            }, 200);
+        }
 
         // ==========================================
         // TEXTURE CREATION
@@ -1044,6 +1141,8 @@
 
             document.getElementById('photo-counter').classList.remove('visible');
             document.getElementById('swipe-indicator').classList.remove('visible');
+            document.getElementById('nav-left').classList.remove('visible');
+            document.getElementById('nav-right').classList.remove('visible');
         }
 
         function animateExplodeMode(time) {
@@ -1106,11 +1205,13 @@
             document.getElementById('photo-counter').classList.add('visible');
             document.getElementById('photo-counter').textContent = `${currentPhotoIndex + 1} / ${CONFIG.photoCount}`;
             document.getElementById('swipe-indicator').classList.add('visible');
+            document.getElementById('nav-left').classList.remove('visible');
+            document.getElementById('nav-right').classList.remove('visible');
         }
 
         function animatePhotoMode(time) {
-            // Contract galaxy
-            const targetScale = 0.5;
+            // Giữ galaxy ở background (không thu nhỏ quá)
+            const targetScale = 0.8;
             if(galaxyCore) {
                 galaxyCore.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.05);
             }
@@ -1118,30 +1219,37 @@
                 galaxyDisk.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.05);
             }
 
-            // Hide planets
+            // Giữ planets nhỏ nhưng vẫn thấy
             planets.forEach(planet => {
-                planet.scale.lerp(new THREE.Vector3(0.1, 0.1, 0.1), 0.1);
+                planet.scale.lerp(new THREE.Vector3(0.3, 0.3, 0.3), 0.1);
             });
 
-            // Show selected photo
+            // Show selected photo với transition mượt hơn
             photoMeshes.forEach((mesh, i) => {
                 if(i === currentPhotoIndex) {
                     mesh.visible = true;
-                    mesh.position.lerp(new THREE.Vector3(0, 0, 70), 0.1);
-                    mesh.scale.lerp(new THREE.Vector3(6, 6, 6), 0.1);
+                    // Vị trí gần hơn nhưng không che hết galaxy
+                    mesh.position.lerp(new THREE.Vector3(0, 0, 50), CONFIG.photoTransitionSpeed * 0.1);
+                    // Scale nhỏ hơn để thấy background
+                    mesh.scale.lerp(new THREE.Vector3(CONFIG.photoMaxScale, CONFIG.photoMaxScale, CONFIG.photoMaxScale), CONFIG.photoTransitionSpeed * 0.1);
                     mesh.lookAt(camera.position);
                     mesh.rotation.z = 0;
                 } else {
-                    mesh.scale.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+                    // Các ảnh khác fade out chậm
+                    mesh.scale.lerp(new THREE.Vector3(0, 0, 0), 0.05);
                     if(mesh.scale.x < 0.01) mesh.visible = false;
                 }
             });
 
-            camera.position.z = THREE.MathUtils.lerp(camera.position.z, 100, 0.05);
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, 90, 0.05);
 
             document.getElementById('photo-counter').classList.add('visible');
             document.getElementById('photo-counter').textContent = `${currentPhotoIndex + 1} / ${CONFIG.photoCount}`;
             document.getElementById('swipe-indicator').classList.remove('visible');
+            
+            // Show navigation arrows
+            document.getElementById('nav-left').classList.add('visible');
+            document.getElementById('nav-right').classList.add('visible');
         }
 
         // ==========================================
@@ -1257,7 +1365,6 @@
                     // Track hand X position
                     prevHandX = handX;
                     handX = lm[9].x;
-                    swipeVelocity = handX - prevHandX;
 
                     // Calculate gestures
                     const tips = [8, 12, 16, 20];
@@ -1268,14 +1375,29 @@
                     });
                     const avgDist = openDist / 4;
 
-                    // Detect swipe gesture
-                    if(state === 'EXPLODE' && Math.abs(swipeVelocity) > CONFIG.swipeThreshold) {
-                        if(swipeVelocity > 0) {
-                            // Swipe right -> previous photo
-                            currentPhotoIndex = (currentPhotoIndex - 1 + CONFIG.photoCount) % CONFIG.photoCount;
-                        } else {
-                            // Swipe left -> next photo
-                            currentPhotoIndex = (currentPhotoIndex + 1) % CONFIG.photoCount;
+                    // Detect pointing gesture (index finger extended, others closed)
+                    const indexExtended = Math.hypot(lm[8].x - lm[6].x, lm[8].y - lm[6].y) > 0.1;
+                    const middleClosed = Math.hypot(lm[12].x - lm[10].x, lm[12].y - lm[10].y) < 0.08;
+                    const ringClosed = Math.hypot(lm[16].x - lm[14].x, lm[16].y - lm[14].y) < 0.08;
+                    const pinkyClosed = Math.hypot(lm[20].x - lm[18].x, lm[20].y - lm[18].y) < 0.08;
+                    
+                    const isPointing = indexExtended && middleClosed && ringClosed && pinkyClosed;
+                    
+                    // Detect pointing direction when in EXPLODE or PHOTO mode
+                    if((state === 'EXPLODE' || state === 'PHOTO') && isPointing) {
+                        const now = Date.now();
+                        if(now - lastPhotoChangeTime > CONFIG.pointingCooldown) {
+                            const indexTipX = lm[8].x;
+                            const palmX = lm[0].x;
+                            const pointing = indexTipX - palmX;
+                            
+                            if(pointing > CONFIG.pointingThreshold) {
+                                // Pointing right -> next photo
+                                nextPhoto();
+                            } else if(pointing < -CONFIG.pointingThreshold) {
+                                // Pointing left -> prev photo
+                                prevPhoto();
+                            }
                         }
                     }
 
@@ -1304,9 +1426,15 @@
                         statusBadge.innerHTML = '📸 XEM ẢNH';
                         statusBadge.style.color = '#ffff00';
                         statusBadge.style.borderColor = 'rgba(255, 255, 0, 0.6)';
-                        cameraStatus.textContent = '📸 ĐANG XEM';
+                        
+                        if(isPointing) {
+                            cameraStatus.textContent = '☝️ DƠ NGÓN TAY';
+                            cameraStatus.style.color = '#00ff00';
+                        } else {
+                            cameraStatus.textContent = '📸 ĐANG XEM';
+                            cameraStatus.style.color = '#ffff00';
+                        }
                         cameraStatus.className = 'detecting';
-                        cameraStatus.style.color = '#ffff00';
                     }
 
                     // Draw gesture info on canvas
@@ -1314,7 +1442,8 @@
                     ctx.fillRect(10, canvas.height - 40, 200, 30);
                     ctx.fillStyle = '#00ffff';
                     ctx.font = '14px Space Mono';
-                    ctx.fillText(`Độ mở: ${(avgDist * 100).toFixed(0)}%`, 15, canvas.height - 18);
+                    const info = isPointing ? 'Dơ ngón tay ☝️' : `Độ mở: ${(avgDist * 100).toFixed(0)}%`;
+                    ctx.fillText(info, 15, canvas.height - 18);
 
                 } else {
                     // No hand detected
@@ -1386,12 +1515,90 @@
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if(e.key === 'ArrowLeft') {
-                currentPhotoIndex = (currentPhotoIndex - 1 + CONFIG.photoCount) % CONFIG.photoCount;
+                if(state === 'EXPLODE' || state === 'PHOTO') {
+                    prevPhoto();
+                }
             } else if(e.key === 'ArrowRight') {
-                currentPhotoIndex = (currentPhotoIndex + 1) % CONFIG.photoCount;
+                if(state === 'EXPLODE' || state === 'PHOTO') {
+                    nextPhoto();
+                }
             } else if(e.key === ' ') {
-                state = (state === 'GALAXY') ? 'EXPLODE' : 'GALAXY';
+                e.preventDefault();
+                // Toggle between GALAXY and EXPLODE
+                if(state === 'GALAXY') {
+                    state = 'EXPLODE';
+                } else {
+                    state = 'GALAXY';
+                }
             }
+        });
+
+        // Mouse drag controls for photo navigation
+        renderer.domElement.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            dragStartX = e.clientX;
+        });
+
+        renderer.domElement.addEventListener('mousemove', (e) => {
+            if(isDragging && (state === 'EXPLODE' || state === 'PHOTO')) {
+                const dragDelta = e.clientX - dragStartX;
+                
+                // Horizontal swipe
+                if(Math.abs(dragDelta) > dragThreshold) {
+                    if(dragDelta > 0) {
+                        // Drag right -> previous photo
+                        prevPhoto();
+                        state = 'PHOTO'; // Switch to PHOTO mode when dragging
+                    } else {
+                        // Drag left -> next photo
+                        nextPhoto();
+                        state = 'PHOTO'; // Switch to PHOTO mode when dragging
+                    }
+                    dragStartX = e.clientX;
+                }
+            }
+        });
+
+        renderer.domElement.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        renderer.domElement.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+
+        // Touch controls
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
+        renderer.domElement.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+
+        renderer.domElement.addEventListener('touchmove', (e) => {
+            if(state === 'EXPLODE' || state === 'PHOTO') {
+                e.preventDefault();
+                const touchDelta = e.touches[0].clientX - touchStartX;
+                
+                if(Math.abs(touchDelta) > dragThreshold) {
+                    if(touchDelta > 0) {
+                        // Swipe right -> previous photo
+                        prevPhoto();
+                        state = 'PHOTO';
+                    } else {
+                        // Swipe left -> next photo
+                        nextPhoto();
+                        state = 'PHOTO';
+                    }
+                    touchStartX = e.touches[0].clientX;
+                }
+            }
+        }, { passive: false });
+
+        renderer.domElement.addEventListener('touchend', () => {
+            touchStartX = 0;
+            touchStartY = 0;
         });
 
         // Error handling
