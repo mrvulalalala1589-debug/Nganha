@@ -2,614 +2,1233 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Awaken The Universe - Ultimate Remaster</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galaxy Adventure - Phiêu Lưu Vũ Trụ</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap');
+        
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body {
-            width: 100%; height: 100%; overflow: hidden;
-            background: #000; touch-action: none;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
+            font-family: 'Space Mono', monospace;
+            cursor: none;
         }
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 10;
+
+        /* Custom Cursor */
+        #custom-cursor {
+            position: fixed;
+            width: 30px;
+            height: 30px;
+            border: 2px solid rgba(0, 255, 255, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10000;
+            transition: transform 0.1s ease;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4),
+                        inset 0 0 10px rgba(0, 255, 255, 0.2);
         }
-        #hint {
-            position: absolute; top: 50%; left: 50%;
+        
+        #custom-cursor::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
             transform: translate(-50%, -50%);
-            color: rgba(255, 230, 255, 0.95);
-            font-size: 22px; text-align: center;
-            text-shadow: 0 0 30px rgba(255, 100, 255, 0.9), 0 0 60px rgba(100, 100, 255, 0.8);
-            animation: pulse 3s ease-in-out infinite;
-            transition: opacity 1s ease;
-            letter-spacing: 2px;
-            font-weight: 300;
+            width: 6px;
+            height: 6px;
+            background: #00ffff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ffff;
         }
-        @keyframes pulse {
-            0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); text-shadow: 0 0 20px rgba(255, 100, 255, 0.5); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); text-shadow: 0 0 50px rgba(255, 100, 255, 1); }
+
+        #canvas-container { 
+            width: 100%; 
+            height: 100vh; 
+            display: block; 
+            position: relative;
         }
-        #backHint {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            color: rgba(100, 200, 255, 0.6); font-size: 14px;
-            opacity: 0; transition: opacity 1s ease;
-            letter-spacing: 1px;
+        
+        /* Splash Screen */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: radial-gradient(ellipse at center, #1a1a3a 0%, #000000 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 1s ease-out;
         }
-        #loading {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #fff; font-size: 16px; z-index: 20;
-            background: rgba(0,0,0,0.8); padding: 15px 30px; border-radius: 30px;
-            border: 1px solid rgba(255,255,255,0.1);
+
+        #splash-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .splash-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(3rem, 10vw, 8rem);
+            font-weight: 900;
+            background: linear-gradient(45deg, #00ffff, #ff00ff, #ffff00, #00ffff);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+            animation: gradientShift 3s ease infinite, floatTitle 3s ease-in-out infinite;
+            text-shadow: 0 0 80px rgba(0, 255, 255, 0.5);
+            letter-spacing: 0.1em;
+            margin-bottom: 2rem;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        @keyframes floatTitle {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .splash-subtitle {
+            font-family: 'Space Mono', monospace;
+            font-size: clamp(1rem, 3vw, 1.5rem);
+            color: rgba(0, 255, 255, 0.7);
+            text-align: center;
+            margin-bottom: 4rem;
+            letter-spacing: 0.2em;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        #start-button {
+            position: relative;
+            padding: 20px 60px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00ffff;
+            background: transparent;
+            border: 3px solid #00ffff;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3),
+                        inset 0 0 30px rgba(0, 255, 255, 0.1);
+            animation: pulseButton 2s ease-in-out infinite;
+        }
+
+        #start-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(0, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s ease, height 0.6s ease;
+        }
+
+        #start-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        #start-button:hover {
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.6),
+                        inset 0 0 50px rgba(0, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        @keyframes pulseButton {
+            0%, 100% { box-shadow: 0 0 30px rgba(0, 255, 255, 0.3), inset 0 0 30px rgba(0, 255, 255, 0.1); }
+            50% { box-shadow: 0 0 60px rgba(0, 255, 255, 0.6), inset 0 0 50px rgba(0, 255, 255, 0.3); }
+        }
+
+        /* UI Layer */
+        #ui-layer {
+            position: absolute;
+            bottom: 40px;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #status-badge {
+            display: inline-block;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(0, 255, 255, 0.6);
+            color: #00ffff;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.4),
+                        inset 0 0 20px rgba(0, 255, 255, 0.1);
+            text-shadow: 0 0 20px #00ffff;
+            animation: statusGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes statusGlow {
+            0%, 100% { 
+                box-shadow: 0 0 40px rgba(0, 255, 255, 0.4), inset 0 0 20px rgba(0, 255, 255, 0.1);
+                border-color: rgba(0, 255, 255, 0.6);
+            }
+            50% { 
+                box-shadow: 0 0 60px rgba(0, 255, 255, 0.7), inset 0 0 30px rgba(0, 255, 255, 0.2);
+                border-color: rgba(0, 255, 255, 1);
+            }
+        }
+
+        .gesture-guide {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            margin-top: 15px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+            letter-spacing: 0.05em;
+        }
+
+        .gesture-guide span {
+            color: #00ffff;
+            font-weight: 700;
+        }
+
+        /* Camera Preview */
+        #camera-preview {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 140px;
+            height: 105px;
+            border: 2px solid rgba(0, 255, 255, 0.4);
+            transform: scaleX(-1);
+            opacity: 0.5;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+            transition: opacity 0.3s ease;
+        }
+
+        #camera-preview:hover {
+            opacity: 0.9;
+        }
+
+        /* Photo Counter */
+        #photo-counter {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            color: #00ffff;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+            letter-spacing: 0.2em;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #photo-counter.visible {
+            opacity: 1;
+        }
+
+        /* Swipe Indicator */
+        #swipe-indicator {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Space Mono', monospace;
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            animation: swipeHint 2s ease-in-out infinite;
+        }
+
+        #swipe-indicator.visible {
+            opacity: 1;
+        }
+
+        @keyframes swipeHint {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-10px); }
+        }
+
+        /* Loading Animation */
+        .loading-dots {
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        .loading-dots span {
+            display: inline-block;
+            animation: loadingDot 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes loadingDot {
+            0%, 80%, 100% { opacity: 0; }
+            40% { opacity: 1; }
+        }
+
+        /* Error/Info Messages */
+        #message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #ff0066;
+            color: #ff0066;
+            padding: 30px 50px;
+            border-radius: 20px;
+            font-family: 'Space Mono', monospace;
+            text-align: center;
+            display: none;
+            z-index: 999;
+            box-shadow: 0 0 50px rgba(255, 0, 102, 0.5);
+        }
+
+        #message-box.visible {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .video-container {
+            display: none;
         }
     </style>
 </head>
 <body>
+    <!-- Custom Cursor -->
+    <div id="custom-cursor"></div>
 
-    <div id="loading">✨ Đang khởi tạo ma trận vũ trụ...</div>
-    <div id="ui-layer">
-        <div id="hint" style="opacity: 0;">CHẠM ĐỂ ĐÁNH THỨC</div>
-        <div id="backHint">Click chuột phải để quay về mặt đất</div>
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <div class="splash-title">GALAXY</div>
+        <div class="splash-subtitle">KHÁM PHÁ VŨ TRỤ</div>
+        <button id="start-button">
+            <span>CHẠM ĐỂ PHIÊU LƯU</span>
+        </button>
     </div>
 
-    <!-- CẤU HÌNH IMPORT MODULE TRỰC TIẾP TỪ CDN (Không cần tải file) -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
+    <!-- Message Box -->
+    <div id="message-box"></div>
+
+    <!-- Main UI -->
+    <div id="ui-layer" style="display: none;">
+        <div id="status-badge">🌌 KHÁM PHÁ VŨ TRỤ 🌌</div>
+        <div class="gesture-guide">
+            <span>✊ NẮM TAY:</span> Thu Galaxy &nbsp;|&nbsp; 
+            <span>🖐 XÒE TAY:</span> Bung Hành Tinh &nbsp;|&nbsp; 
+            <span>👉 PHẤT TAY:</span> Lướt Ảnh
+        </div>
+    </div>
+
+    <!-- Photo Counter -->
+    <div id="photo-counter">1 / 10</div>
+
+    <!-- Swipe Indicator -->
+    <div id="swipe-indicator">← PHẤT TAY ĐỂ LƯỚT ẢNH →</div>
+
+    <!-- Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Video Elements -->
+    <div class="video-container">
+        <video class="input_video"></video>
+        <canvas id="camera-preview"></canvas>
+    </div>
+
+    <script>
+        // ==========================================
+        // CONFIGURATION
+        // ==========================================
+        const CONFIG = {
+            // Galaxy Core
+            coreParticles: 30000,
+            diskParticles: 70000,
+            
+            // Stars
+            starCount: 5000,
+            
+            // Planets
+            planetCount: 50,
+            
+            // Photos
+            photoCount: 10,
+            photoOrbitRadius: 30,
+            
+            // States
+            explodeRadius: 70,
+            galaxyRadius: 50,
+            
+            // Animation
+            rotationSpeed: 0.001,
+            swipeThreshold: 0.15
+        };
+
+        const MUSIC_URL = "./audio.mp3";
+        let bgMusic = new Audio(MUSIC_URL);
+        bgMusic.loop = true;
+        bgMusic.volume = 0.6;
+
+        // Photo files
+        const photoFiles = [];
+        for(let i = 1; i <= CONFIG.photoCount; i++) {
+            photoFiles.push(`./image${i}.png`);
         }
-    </script>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-
-        // ============================================================================
-        // 1. CẤU HÌNH & KHỞI TẠO (SETUP)
-        // ============================================================================
+        // ==========================================
+        // GLOBAL VARIABLES
+        // ==========================================
+        let scene, camera, renderer;
+        let galaxyCore, galaxyDisk, starField;
+        let planets = [];
+        let photoMeshes = [];
+        let nebulaParticles;
         
-        const scene = new THREE.Scene();
-        // Sương mù sâu hơn, màu tím than để Bloom nổi bật
-        scene.fog = new THREE.FogExp2(0x050210, 0.0006);
+        let state = 'GALAXY'; // GALAXY, EXPLODE, PHOTO
+        let currentPhotoIndex = 0;
+        let handX = 0.5;
+        let prevHandX = 0.5;
+        let swipeVelocity = 0;
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
-        camera.position.set(0, 20, 100); // Vị trí ban đầu ở mặt đất
-        camera.lookAt(0, 40, 0);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance", stencil: false });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Tối ưu hiệu năng
-        renderer.toneMapping = THREE.ReinhardToneMapping; // Tone mapping giúp màu không bị cháy khi Bloom
-        document.body.appendChild(renderer.domElement);
-
-        // --- POST-PROCESSING (BÍ MẬT CỦA VẺ ĐẸP) ---
-        const renderScene = new RenderPass(scene, camera);
-        
-        // Hiệu ứng Bloom (Lóa sáng)
-        const bloomPass = new UnrealBloomPass(
-            new THREE.Vector2(window.innerWidth, window.innerHeight),
-            1.5, // Strength (Độ mạnh)
-            0.4, // Radius (Bán kính)
-            0.85 // Threshold (Ngưỡng sáng - chỉ vật rất sáng mới lóa)
-        );
-
-        const composer = new EffectComposer(renderer);
-        composer.addPass(renderScene);
-        composer.addPass(bloomPass);
-
-        // ============================================================================
-        // 2. TEXTURE GENERATORS (TẠO TEXTURE BẰNG CODE)
-        // ============================================================================
-
-        function createTexture(type) {
+        // ==========================================
+        // TEXTURE CREATION
+        // ==========================================
+        function createGlowTexture(color1, color2) {
             const canvas = document.createElement('canvas');
-            canvas.width = 128; canvas.height = 128;
+            canvas.width = 128;
+            canvas.height = 128;
             const ctx = canvas.getContext('2d');
             const cx = 64, cy = 64;
 
-            if (type === 'glow') {
-                const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 64);
-                g.addColorStop(0, 'rgba(255,255,255,1)');
-                g.addColorStop(0.2, 'rgba(240,240,255,0.6)');
-                g.addColorStop(0.5, 'rgba(100,100,255,0.1)');
-                g.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = g;
-                ctx.fillRect(0,0,128,128);
-            } else if (type === 'flare') {
-                ctx.fillStyle = 'rgba(0,0,0,0)'; ctx.fillRect(0,0,128,128);
-                // Ngôi sao 4 cánh
-                const g = ctx.createRadialGradient(cx,cy,0, cx,cy,64);
-                g.addColorStop(0, 'rgba(255,255,255,1)');
-                g.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = g; ctx.fillRect(40,40,48,48); // Tâm
-                
-                ctx.fillStyle = 'rgba(255,255,255,0.8)';
-                ctx.fillRect(0, 62, 128, 4); // Ngang
-                ctx.fillRect(62, 0, 4, 128); // Dọc
-            } else if (type === 'dust') {
-                // Tạo noise cho bụi
-                const imgData = ctx.createImageData(128,128);
-                for(let i=0; i<imgData.data.length; i+=4) {
-                    const v = Math.random() * 255;
-                    imgData.data[i] = v > 200 ? 100 : 50;   // R
-                    imgData.data[i+1] = v > 200 ? 80 : 40;  // G
-                    imgData.data[i+2] = v > 200 ? 150 : 80; // B
-                    imgData.data[i+3] = Math.random() > 0.9 ? Math.random()*100 : 0; // Alpha
-                }
-                ctx.putImageData(imgData, 0, 0);
-            }
+            const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 64);
+            grd.addColorStop(0, color1);
+            grd.addColorStop(0.3, color2);
+            grd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, 128, 128);
+
             return new THREE.CanvasTexture(canvas);
         }
 
-        const texGlow = createTexture('glow');
-        const texFlare = createTexture('flare');
-        const texDust = createTexture('dust');
+        function createStarTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            const cx = 32, cy = 32;
 
-        // ============================================================================
-        // 3. XÂY DỰNG MÔI TRƯỜNG (ENVIRONMENT)
-        // ============================================================================
+            // Glow
+            const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 32);
+            grd.addColorStop(0, '#FFFFFF');
+            grd.addColorStop(0.1, '#FFFFAA');
+            grd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, 64, 64);
 
-        // --- BẦU TRỜI ---
-        const skyGeo = new THREE.SphereGeometry(4000, 32, 32);
-        const skyMat = new THREE.ShaderMaterial({
-            uniforms: {
-                topColor: { value: new THREE.Color(0x050210) },
-                bottomColor: { value: new THREE.Color(0x1a0a30) },
-                offset: { value: 33 },
-                exponent: { value: 0.6 }
-            },
-            vertexShader: `
-                varying vec3 vWorldPosition;
-                void main() {
-                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-                    vWorldPosition = worldPosition.xyz;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform vec3 topColor;
-                uniform vec3 bottomColor;
-                uniform float offset;
-                uniform float exponent;
-                varying vec3 vWorldPosition;
-                void main() {
-                    float h = normalize(vWorldPosition + offset).y;
-                    gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
-                }
-            `,
-            side: THREE.BackSide
-        });
-        const sky = new THREE.Mesh(skyGeo, skyMat);
-        scene.add(sky);
+            // Cross sparkle
+            ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx - 15, cy);
+            ctx.lineTo(cx + 15, cy);
+            ctx.moveTo(cx, cy - 15);
+            ctx.lineTo(cx, cy + 15);
+            ctx.stroke();
 
-        // --- HỆ THỐNG SAO ĐA TẦNG (STARFIELD SYSTEM) ---
-        // Giữ nguyên logic chia tầng sao để tạo độ sâu 3D thật
-        function createStarLayer(count, size, rangeY, depthOffset, speed, useFlare) {
-            const geo = new THREE.BufferGeometry();
-            const pos = [];
-            const col = [];
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createPlanetTexture(type) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            const colors = {
+                earth: ['#1e90ff', '#228b22', '#8b4513'],
+                mars: ['#cd5c5c', '#8b4513', '#a0522d'],
+                jupiter: ['#daa520', '#cd853f', '#d2691e'],
+                ice: ['#87ceeb', '#4682b4', '#b0e0e6'],
+                lava: ['#ff4500', '#ff6347', '#8b0000']
+            };
+
+            const palette = colors[type] || colors.earth;
+            
+            // Background
+            ctx.fillStyle = palette[0];
+            ctx.fillRect(0, 0, 256, 256);
+
+            // Stripes/patterns
+            for(let i = 0; i < 8; i++) {
+                ctx.fillStyle = palette[Math.floor(Math.random() * palette.length)];
+                ctx.globalAlpha = 0.3 + Math.random() * 0.4;
+                ctx.fillRect(0, i * 35 + Math.random() * 20, 256, 20 + Math.random() * 15);
+            }
+
+            // Craters/spots
+            ctx.globalAlpha = 0.5;
+            for(let i = 0; i < 15; i++) {
+                const x = Math.random() * 256;
+                const y = Math.random() * 256;
+                const r = 5 + Math.random() * 20;
+                ctx.fillStyle = palette[2];
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.globalAlpha = 1;
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const textures = {
+            glow: createGlowTexture('#FFFFFF', '#00FFFF'),
+            cyan: createGlowTexture('#00FFFF', '#0088FF'),
+            magenta: createGlowTexture('#FF00FF', '#8800FF'),
+            yellow: createGlowTexture('#FFFF00', '#FF8800'),
+            star: createStarTexture()
+        };
+
+        // ==========================================
+        // 3D SCENE INITIALIZATION
+        // ==========================================
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.0015);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                60,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                2000
+            );
+            camera.position.set(0, 10, 120);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true, 
+                alpha: false 
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            // Create Galaxy
+            createGalaxyCore();
+            createGalaxyDisk();
+            createStarField();
+            createNebula();
+            createPlanets();
+            createPhotos();
+
+            // Start animation
+            animate();
+        }
+
+        // ==========================================
+        // GALAXY CORE (Center sphere)
+        // ==========================================
+        function createGalaxyCore() {
+            const positions = [];
+            const colors = [];
             const sizes = [];
 
-            for(let i=0; i<count; i++) {
-                const r = 500 + Math.random() * 2500;
+            for(let i = 0; i < CONFIG.coreParticles; i++) {
+                // Sphere distribution
+                const radius = Math.random() * 15 + 5;
                 const theta = Math.random() * Math.PI * 2;
-                
-                // Phân bố hình cầu nhưng dẹt ở trục Y
-                const x = Math.cos(theta) * r;
-                const y = (Math.random() - 0.5) * rangeY;
-                const z = Math.sin(theta) * r + depthOffset;
+                const phi = Math.acos(2 * Math.random() - 1);
 
-                pos.push(x, y, z);
+                const x = radius * Math.sin(phi) * Math.cos(theta);
+                const y = radius * Math.sin(phi) * Math.sin(theta);
+                const z = radius * Math.cos(phi);
 
-                // Màu sắc ngẫu nhiên kiểu thiên văn (Xanh, Vàng, Trắng)
-                const c = new THREE.Color();
-                c.setHSL(Math.random() * 0.2 + 0.5, 0.8, Math.random() * 0.5 + 0.5);
-                col.push(c.r, c.g, c.b);
+                positions.push(x, y, z);
 
-                sizes.push(size * (0.8 + Math.random() * 0.4));
+                // Color gradient (center white, edge cyan)
+                const dist = radius / 20;
+                const r = 1.0;
+                const g = 0.8 + dist * 0.2;
+                const b = 0.5 + dist * 0.5;
+                colors.push(r, g, b);
+
+                sizes.push(1.0 + Math.random() * 2.0);
             }
 
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-            geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-            geo.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
 
-            const mat = new THREE.PointsMaterial({
-                size: size,
-                map: useFlare ? texFlare : texGlow,
-                vertexColors: true,
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 }
+                },
+                vertexShader: `
+                    attribute float size;
+                    attribute vec3 color;
+                    varying vec3 vColor;
+                    uniform float time;
+
+                    void main() {
+                        vColor = color;
+                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                        
+                        float pulse = 1.0 + sin(time * 2.0 + length(position) * 0.1) * 0.3;
+                        gl_PointSize = size * pulse * (300.0 / -mvPosition.z);
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    varying vec3 vColor;
+
+                    void main() {
+                        float dist = length(gl_PointCoord - 0.5);
+                        if(dist > 0.5) discard;
+                        
+                        float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+                        gl_FragColor = vec4(vColor, alpha);
+                    }
+                `,
                 transparent: true,
-                opacity: useFlare ? 0.9 : 0.6,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
 
-            const points = new THREE.Points(geo, mat);
-            points.userData = { speed: speed };
-            return points;
+            galaxyCore = new THREE.Points(geometry, material);
+            scene.add(galaxyCore);
         }
 
-        const starLayers = [];
-        starLayers.push(createStarLayer(5000, 4, 1500, -500, 0.0002, false)); // Nền xa
-        starLayers.push(createStarLayer(2000, 6, 1200, 0, 0.0005, false));    // Trung cảnh
-        starLayers.push(createStarLayer(200, 15, 1000, 200, 0.0008, true));   // Sao sáng gần
-        starLayers.forEach(l => scene.add(l));
+        // ==========================================
+        // GALAXY DISK (Spiral arms)
+        // ==========================================
+        function createGalaxyDisk() {
+            const positions = [];
+            const colors = [];
+            const sizes = [];
+            const shifts = [];
 
-        // --- BỤI VŨ TRỤ (COSMIC DUST) ---
-        const dustGroup = new THREE.Group();
-        for(let i=0; i<4; i++) {
-            const geo = new THREE.PlaneGeometry(3000, 2000);
-            const mat = new THREE.MeshBasicMaterial({
-                map: texDust,
-                transparent: true,
-                opacity: 0.05 - i * 0.01,
-                blending: THREE.AdditiveBlending,
-                side: THREE.DoubleSide,
-                depthWrite: false
-            });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(0, 100 + i*50, -800 - i*200);
-            mesh.rotation.x = -0.2;
-            mesh.userData = { speed: 0.005 + i * 0.002, offset: Math.random() * 100 };
-            dustGroup.add(mesh);
-        }
-        scene.add(dustGroup);
-
-        // --- MẶT ĐẤT VÀ CHÂN TRỜI (GROUND & HORIZON) ---
-        const groundGeo = new THREE.PlaneGeometry(5000, 2000, 64, 64);
-        // Làm mặt đất mấp mô nhẹ
-        const posAttr = groundGeo.attributes.position;
-        for(let i=0; i<posAttr.count; i++) {
-            posAttr.setZ(i, posAttr.getZ(i) + Math.random() * 20);
-        }
-        const groundMat = new THREE.MeshBasicMaterial({ color: 0x030308, transparent: true, opacity: 0.95 });
-        const ground = new THREE.Mesh(groundGeo, groundMat);
-        ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -100;
-        scene.add(ground);
-
-        // ============================================================================
-        // 4. THIÊN HÀ XOẮN ỐC & NỘI DUNG CHÍNH (GALAXY CORE)
-        // ============================================================================
-        
-        const galaxyGroup = new THREE.Group();
-        galaxyGroup.visible = false;
-        scene.add(galaxyGroup);
-
-        // --- TẠO XOẮN ỐC (SPIRAL) ---
-        // Giữ nguyên thuật toán tạo hình xoắn ốc phức tạp
-        function createSpiralGalaxy() {
-            const particleCount = 20000;
-            const geo = new THREE.BufferGeometry();
-            const pos = [];
-            const col = [];
-            
-            // Các màu đặc trưng của Galaxy (Neon Style để hợp với Bloom)
-            const colors = [
-                new THREE.Color(0x00ffff), // Cyan
-                new THREE.Color(0xff00ff), // Magenta
-                new THREE.Color(0x4444ff), // Blue
-                new THREE.Color(0xffaa00)  // Orange
-            ];
-
-            for(let i=0; i<particleCount; i++) {
-                const branchAngle = (i % 3) * ((Math.PI * 2) / 3);
-                const radius = Math.random() * 300 + 20;
-                const spinAngle = radius * 0.01; // Xoắn càng ra xa càng cong
-                const randomX = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 30;
-                const randomY = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 30;
-                const randomZ = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 30;
-
-                const angle = branchAngle + spinAngle;
+            for(let i = 0; i < CONFIG.diskParticles; i++) {
+                // Spiral distribution
+                const r = 15 + Math.random() * 35;
+                const angle = (Math.random() * Math.PI * 4) + (r * 0.1);
+                const spiral = Math.pow(r / 50, 0.5);
                 
-                const x = Math.cos(angle) * radius + randomX;
-                const y = (Math.random() - 0.5) * (300 - radius)/5 + randomY; // Mỏng dần ra rìa
-                const z = Math.sin(angle) * radius + randomZ;
+                const x = r * Math.cos(angle + spiral);
+                const z = r * Math.sin(angle + spiral);
+                const y = (Math.random() - 0.5) * 3;
 
-                pos.push(x, y, z);
+                positions.push(x, y, z);
 
-                // Trộn màu
-                const colorInside = new THREE.Color(0xffffff); // Tâm trắng
-                const colorOutside = colors[i % colors.length];
-                const mixedColor = colorInside.clone().lerp(colorOutside, radius / 300);
-                
-                // Tăng độ sáng màu để Bloom bắt được
-                mixedColor.multiplyScalar(1.5); 
+                // Color based on radius
+                const dist = r / 50;
+                const r_color = 0.5 + dist * 0.5;
+                const g_color = 0.3 + dist * 0.3;
+                const b_color = 1.0 - dist * 0.3;
+                colors.push(r_color, g_color, b_color);
 
-                col.push(mixedColor.r, mixedColor.g, mixedColor.b);
+                sizes.push(0.5 + Math.random() * 1.5);
+
+                // Shift for animation
+                shifts.push(
+                    Math.random() * Math.PI * 2,
+                    Math.random() * Math.PI * 2,
+                    0.1 + Math.random() * 0.2,
+                    0.2 + Math.random() * 0.3
+                );
             }
 
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-            geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+            geometry.setAttribute('shift', new THREE.Float32BufferAttribute(shifts, 4));
 
-            const mat = new THREE.PointsMaterial({
-                size: 3,
-                map: texGlow,
-                vertexColors: true,
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 }
+                },
+                vertexShader: `
+                    attribute float size;
+                    attribute vec3 color;
+                    attribute vec4 shift;
+                    varying vec3 vColor;
+                    uniform float time;
+
+                    void main() {
+                        vColor = color;
+                        
+                        // Orbital motion
+                        float t = time * shift.z;
+                        float moveT = mod(shift.x + t, 6.28318);
+                        float moveS = mod(shift.y + t, 6.28318);
+                        
+                        vec3 newPos = position;
+                        newPos += vec3(
+                            cos(moveS) * sin(moveT),
+                            cos(moveT),
+                            sin(moveS) * sin(moveT)
+                        ) * shift.w;
+                        
+                        vec4 mvPosition = modelViewMatrix * vec4(newPos, 1.0);
+                        gl_PointSize = size * (200.0 / -mvPosition.z);
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    varying vec3 vColor;
+
+                    void main() {
+                        float dist = length(gl_PointCoord - 0.5);
+                        if(dist > 0.5) discard;
+                        
+                        float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+                        gl_FragColor = vec4(vColor, alpha * 0.8);
+                    }
+                `,
                 transparent: true,
-                opacity: 0.8,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
 
-            return new THREE.Points(geo, mat);
-        }
-        
-        const spiral = createSpiralGalaxy();
-        galaxyGroup.add(spiral);
-
-        // --- TÂM GALAXY (CORE) ---
-        // Một khối cầu cực sáng ở giữa
-        const coreLight = new THREE.PointLight(0xffaa00, 2, 1000);
-        galaxyGroup.add(coreLight);
-        const coreMesh = new THREE.Mesh(
-            new THREE.SphereGeometry(10, 32, 32),
-            new THREE.MeshBasicMaterial({ color: 0xffffee })
-        );
-        galaxyGroup.add(coreMesh);
-        // Hào quang tâm
-        const coreGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: texGlow, color: 0xffaa55, blending: THREE.AdditiveBlending, transparent: true
-        }));
-        coreGlow.scale.set(120, 120, 1);
-        galaxyGroup.add(coreGlow);
-
-        // --- CÁC HÌNH ẢNH BAY (FLOATING CARDS) ---
-        // Tự tạo Canvas Texture thay vì load ảnh để tránh lỗi
-        const cardGroup = new THREE.Group();
-        galaxyGroup.add(cardGroup);
-
-        function createCardTexture(idx) {
-            const cvs = document.createElement('canvas');
-            cvs.width = 300; cvs.height = 400;
-            const ctx = cvs.getContext('2d');
-            // Gradient nền
-            const g = ctx.createLinearGradient(0,0,300,400);
-            g.addColorStop(0, `hsl(${idx*40}, 70%, 20%)`);
-            g.addColorStop(1, `hsl(${idx*40}, 70%, 10%)`);
-            ctx.fillStyle = g; ctx.fillRect(0,0,300,400);
-            // Viền
-            ctx.strokeStyle = `hsl(${idx*40}, 100%, 70%)`; ctx.lineWidth = 10;
-            ctx.strokeRect(5,5,290,390);
-            // Chữ
-            ctx.fillStyle = '#fff'; ctx.font = 'bold 60px Arial'; ctx.textAlign = 'center';
-            ctx.fillText((idx+1).toString().padStart(2,'0'), 150, 150);
-            ctx.font = '30px Arial';
-            ctx.fillText("UNIVERSE", 150, 220);
-            return new THREE.CanvasTexture(cvs);
+            galaxyDisk = new THREE.Points(geometry, material);
+            scene.add(galaxyDisk);
         }
 
-        const cards = [];
-        for(let i=0; i<8; i++) {
-            const tex = createCardTexture(i);
-            const geo = new THREE.PlaneGeometry(30, 40);
-            const mat = new THREE.MeshBasicMaterial({ 
-                map: tex, side: THREE.DoubleSide, transparent: true, opacity: 0 
+        // ==========================================
+        // BACKGROUND STARS
+        // ==========================================
+        function createStarField() {
+            const positions = [];
+            const sizes = [];
+
+            for(let i = 0; i < CONFIG.starCount; i++) {
+                const radius = 200 + Math.random() * 800;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+
+                const x = radius * Math.sin(phi) * Math.cos(theta);
+                const y = radius * Math.sin(phi) * Math.sin(theta);
+                const z = radius * Math.cos(phi);
+
+                positions.push(x, y, z);
+                sizes.push(0.5 + Math.random() * 2);
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+
+            const material = new THREE.PointsMaterial({
+                size: 2,
+                map: textures.star,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                sizeAttenuation: true
             });
-            const mesh = new THREE.Mesh(geo, mat);
-            
-            // Xếp thành vòng tròn
-            const angle = (i / 8) * Math.PI * 2;
-            mesh.position.set(Math.cos(angle) * 150, Math.sin(angle * 2) * 30, Math.sin(angle) * 150);
-            mesh.lookAt(0,0,0);
-            
-            mesh.userData = { 
-                angle: angle, 
-                dist: 150, 
-                speed: 0.002, 
-                baseY: mesh.position.y 
-            };
-            
-            cardGroup.add(mesh);
-            cards.push(mesh);
+
+            starField = new THREE.Points(geometry, material);
+            scene.add(starField);
         }
 
-        // --- SAO BĂNG (METEORS) ---
-        const meteors = [];
-        function spawnMeteor() {
-            const headGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0)]);
-            const headMat = new THREE.PointsMaterial({
-                color: 0xffffff, size: 8, map: texFlare, 
-                transparent: true, blending: THREE.AdditiveBlending
+        // ==========================================
+        // NEBULA EFFECT
+        // ==========================================
+        function createNebula() {
+            const positions = [];
+            const colors = [];
+            const sizes = [];
+
+            for(let i = 0; i < 1000; i++) {
+                const radius = 40 + Math.random() * 60;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+
+                const x = radius * Math.sin(phi) * Math.cos(theta);
+                const y = radius * Math.sin(phi) * Math.sin(theta);
+                const z = radius * Math.cos(phi);
+
+                positions.push(x, y, z);
+
+                // Colorful nebula
+                const hue = Math.random();
+                if(hue < 0.33) {
+                    colors.push(1, 0.3, 0.8); // Magenta
+                } else if(hue < 0.66) {
+                    colors.push(0.3, 0.8, 1); // Cyan
+                } else {
+                    colors.push(1, 0.8, 0.3); // Yellow
+                }
+
+                sizes.push(15 + Math.random() * 25);
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+
+            const material = new THREE.PointsMaterial({
+                size: 20,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.15,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                sizeAttenuation: true,
+                map: textures.glow
             });
-            const head = new THREE.Points(headGeo, headMat);
 
-            // Đuôi sao băng (Line)
-            const tailPoints = [];
-            for(let i=0; i<20; i++) tailPoints.push(new THREE.Vector3(-i*2, i, 0));
-            const tailGeo = new THREE.BufferGeometry().setFromPoints(tailPoints);
-            const tailMat = new THREE.LineBasicMaterial({
-                color: 0xaaccff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending
+            nebulaParticles = new THREE.Points(geometry, material);
+            scene.add(nebulaParticles);
+        }
+
+        // ==========================================
+        // PLANETS
+        // ==========================================
+        function createPlanets() {
+            const planetTypes = ['earth', 'mars', 'jupiter', 'ice', 'lava'];
+            
+            for(let i = 0; i < CONFIG.planetCount; i++) {
+                const type = planetTypes[Math.floor(Math.random() * planetTypes.length)];
+                const size = 1 + Math.random() * 3;
+                
+                const geometry = new THREE.SphereGeometry(size, 16, 16);
+                const material = new THREE.MeshBasicMaterial({
+                    map: createPlanetTexture(type),
+                    transparent: false
+                });
+
+                const planet = new THREE.Mesh(geometry, material);
+                
+                // Random position in galaxy
+                const radius = 20 + Math.random() * 40;
+                const angle = Math.random() * Math.PI * 2;
+                planet.position.x = radius * Math.cos(angle);
+                planet.position.z = radius * Math.sin(angle);
+                planet.position.y = (Math.random() - 0.5) * 10;
+
+                // Rotation speed
+                planet.userData.rotationSpeed = 0.001 + Math.random() * 0.005;
+                planet.userData.orbitSpeed = 0.0001 + Math.random() * 0.0003;
+                planet.userData.orbitRadius = radius;
+                planet.userData.orbitAngle = angle;
+
+                scene.add(planet);
+                planets.push(planet);
+            }
+        }
+
+        // ==========================================
+        // PHOTOS
+        // ==========================================
+        function createPhotos() {
+            const loader = new THREE.TextureLoader();
+            const photoTextures = [];
+
+            // Load textures
+            photoFiles.forEach((file, i) => {
+                loader.load(
+                    file,
+                    (texture) => {
+                        photoTextures[i] = texture;
+                        if(photoMeshes[i]) {
+                            photoMeshes[i].material.map = texture;
+                            photoMeshes[i].material.needsUpdate = true;
+                        }
+                    },
+                    undefined,
+                    (error) => {
+                        console.warn(`Failed to load ${file}:`, error);
+                    }
+                );
             });
-            const tail = new THREE.Line(tailGeo, tailMat);
-            
-            const group = new THREE.Group();
-            group.add(head);
-            group.add(tail);
-            group.visible = false;
-            
-            scene.add(group);
-            return { mesh: group, speed: 0, active: false };
-        }
-        for(let i=0; i<10; i++) meteors.push(spawnMeteor());
 
-        // ============================================================================
-        // 5. LOGIC ĐIỀU KHIỂN & ANIMATION
-        // ============================================================================
-        
-        // Ẩn màn hình loading
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('hint').style.opacity = 1;
+            // Create photo meshes
+            const photoGeo = new THREE.PlaneGeometry(12, 12);
+            const borderGeo = new THREE.PlaneGeometry(13, 13);
+            const borderMat = new THREE.MeshBasicMaterial({ 
+                color: 0x00ffff,
+                side: THREE.DoubleSide
+            });
 
-        let state = 'GROUND'; // GROUND -> TRANSITION -> SPACE
-        let time = 0;
-        let transitionProgress = 0;
-        
-        // Tương tác chuột
-        let mouseX = 0, mouseY = 0;
-        let targetRotX = 0, targetRotY = 0;
-        
-        document.addEventListener('mousemove', (e) => {
-            mouseX = (e.clientX - window.innerWidth/2) * 0.001;
-            mouseY = (e.clientY - window.innerHeight/2) * 0.001;
-        });
+            for(let i = 0; i < CONFIG.photoCount; i++) {
+                const mat = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    side: THREE.DoubleSide,
+                    transparent: true
+                });
 
-        // Hàm kích hoạt
-        function awaken() {
-            if (state !== 'GROUND') return;
-            state = 'TRANSITION';
-            document.getElementById('hint').style.opacity = 0;
-            
-            // Hiện Galaxy để chuẩn bị bay đến
-            galaxyGroup.visible = true;
-            galaxyGroup.scale.set(0.01, 0.01, 0.01);
+                const mesh = new THREE.Mesh(photoGeo, mat);
+                const border = new THREE.Mesh(borderGeo, borderMat);
+                border.position.z = -0.1;
+                mesh.add(border);
 
-            // Tăng Bloom lên cực đại để làm lóa mắt khi chuyển cảnh
-            bloomPass.strength = 3.0;
-            bloomPass.radius = 1.0;
+                mesh.visible = false;
+                mesh.scale.set(0, 0, 0);
+                mesh.userData.targetScale = 0;
+                
+                scene.add(mesh);
+                photoMeshes.push(mesh);
+            }
         }
 
-        // Hàm quay về
-        function reset() {
-            if (state !== 'SPACE') return;
-            state = 'GROUND';
-            galaxyGroup.visible = false;
-            document.getElementById('hint').style.opacity = 1;
-            document.getElementById('backHint').style.opacity = 0;
-            
-            // Reset Camera
-            camera.position.set(0, 20, 100);
-            camera.lookAt(0, 40, 0);
-            sky.material.uniforms.topColor.value.setHex(0x050210);
-            
-            // Reset Bloom
-            bloomPass.strength = 1.5;
-            bloomPass.radius = 0.4;
-        }
-
-        window.addEventListener('mousedown', awaken);
-        window.addEventListener('touchstart', awaken);
-        window.addEventListener('contextmenu', (e) => { e.preventDefault(); reset(); });
-
-        // --- VÒNG LẶP RENDER ---
+        // ==========================================
+        // ANIMATION LOOP
+        // ==========================================
         function animate() {
             requestAnimationFrame(animate);
-            time += 0.01;
-
-            // 1. ANIMATION CƠ BẢN (LUÔN CHẠY)
-            starLayers.forEach((l, i) => {
-                l.rotation.y += l.userData.speed;
-                // Sao nhấp nháy
-                if (i === 2) l.material.opacity = 0.8 + Math.sin(time * 3) * 0.2;
-            });
             
-            dustGroup.children.forEach(d => {
-                d.position.x = Math.sin(time * 0.2 + d.userData.offset) * 50;
-                d.position.y += Math.cos(time * 0.1) * 0.1;
-            });
+            const time = Date.now() * 0.001;
+            const speed = 0.08;
 
-            // 2. LOGIC THEO TRẠNG THÁI
-            if (state === 'GROUND') {
-                // Camera thở nhẹ
-                camera.position.y = 20 + Math.sin(time) * 2;
-                camera.position.x += (mouseX * 50 - camera.position.x) * 0.05;
-                camera.position.z = 100 + Math.cos(time * 0.5) * 5;
-                camera.lookAt(0, 40 + mouseY * 20, 0);
+            // Update shaders
+            if(galaxyCore) galaxyCore.material.uniforms.time.value = time;
+            if(galaxyDisk) galaxyDisk.material.uniforms.time.value = time;
 
-            } else if (state === 'TRANSITION') {
-                transitionProgress += 0.008;
-                const t = Math.min(transitionProgress, 1);
-                // Hiệu ứng tăng tốc (Exponential Ease In)
-                const ease = t === 1 ? 1 : Math.pow(2, 10 * t - 10);
-
-                // Camera lao vút lên trời
-                const targetPos = new THREE.Vector3(0, 50, 400); // Vị trí ngắm Galaxy
-                camera.position.lerp(targetPos, 0.02 + ease * 0.05);
-                
-                // Galaxy phóng to ra
-                const scale = 0.01 + ease * 0.99;
-                galaxyGroup.scale.set(scale, scale, scale);
-
-                // Trời sáng hơn (màu tím không gian)
-                sky.material.uniforms.topColor.value.lerp(new THREE.Color(0x220044), 0.01);
-
-                // Giảm Bloom dần về mức ổn định
-                if (bloomPass.strength > 1.8) bloomPass.strength -= 0.02;
-
-                if (t >= 1 && camera.position.z > 350) {
-                    state = 'SPACE';
-                    transitionProgress = 0;
-                    document.getElementById('backHint').style.opacity = 1;
-                    bloomPass.strength = 1.8; // Chốt mức bloom đẹp
-                }
-
-            } else if (state === 'SPACE') {
-                // Điều khiển Camera/Galaxy bằng chuột
-                galaxyGroup.rotation.y += 0.001; // Tự quay
-                
-                // Nghiêng theo chuột
-                targetRotX = mouseY * 0.5;
-                targetRotY = mouseX * 0.5;
-                galaxyGroup.rotation.x += (targetRotX - galaxyGroup.rotation.x) * 0.05;
-                galaxyGroup.rotation.z += (targetRotY * 0.5 - galaxyGroup.rotation.z) * 0.05;
-
-                // Animation nội bộ Galaxy
-                spiral.rotation.y -= 0.002;
-                
-                // Cards bay vòng quanh
-                cards.forEach((c, i) => {
-                    c.material.opacity = Math.min(c.material.opacity + 0.01, 1); // Hiện dần
-                    c.userData.angle += c.userData.speed;
-                    const r = c.userData.dist;
-                    c.position.x = Math.cos(c.userData.angle) * r;
-                    c.position.z = Math.sin(c.userData.angle) * r;
-                    // Lượn sóng
-                    c.position.y = c.userData.baseY + Math.sin(time * 2 + i) * 10;
-                    c.lookAt(camera.position);
-                });
+            // State-based animation
+            if(state === 'GALAXY') {
+                animateGalaxyMode(time);
+            } else if(state === 'EXPLODE') {
+                animateExplodeMode(time);
+            } else if(state === 'PHOTO') {
+                animatePhotoMode(time);
             }
 
-            // 3. SAO BĂNG (CHẠY NGẪU NHIÊN Ở MỌI TRẠNG THÁI)
-            meteors.forEach(m => {
-                if (!m.active) {
-                    if (Math.random() < 0.005) { // 0.5% cơ hội xuất hiện mỗi frame
-                        m.active = true;
-                        m.mesh.visible = true;
-                        // Xuất hiện ngẫu nhiên trên trời
-                        m.mesh.position.set(
-                            (Math.random() - 0.5) * 1000,
-                            Math.random() * 500 + 200,
-                            (Math.random() - 0.5) * 500 - 500
-                        );
-                        m.speed = 5 + Math.random() * 5;
-                    }
-                } else {
-                    m.mesh.position.x -= m.speed;
-                    m.mesh.position.y -= m.speed * 0.5;
-                    if (m.mesh.position.y < -100 || m.mesh.position.x < -1000) {
-                        m.active = false;
-                        m.mesh.visible = false;
-                    }
+            // Rotate planets
+            planets.forEach(planet => {
+                planet.rotation.y += planet.userData.rotationSpeed;
+                
+                if(state === 'GALAXY') {
+                    planet.userData.orbitAngle += planet.userData.orbitSpeed;
+                    planet.position.x = planet.userData.orbitRadius * Math.cos(planet.userData.orbitAngle);
+                    planet.position.z = planet.userData.orbitRadius * Math.sin(planet.userData.orbitAngle);
                 }
             });
 
-            // 4. RENDER CUỐI CÙNG
-            composer.render();
+            // Rotate star field slowly
+            if(starField) {
+                starField.rotation.y += 0.0001;
+            }
+
+            // Nebula drift
+            if(nebulaParticles) {
+                nebulaParticles.rotation.y += 0.0002;
+                nebulaParticles.rotation.x += 0.0001;
+            }
+
+            renderer.render(scene, camera);
         }
 
-        // Resize màn hình
+        function animateGalaxyMode(time) {
+            // Rotate galaxy
+            if(galaxyCore) galaxyCore.rotation.y += CONFIG.rotationSpeed * 2;
+            if(galaxyDisk) galaxyDisk.rotation.y += CONFIG.rotationSpeed;
+
+            // Hide photos
+            photoMeshes.forEach(mesh => {
+                mesh.scale.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+                if(mesh.scale.x < 0.01) mesh.visible = false;
+            });
+
+            // Camera position
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, 120, 0.05);
+            camera.position.y = THREE.MathUtils.lerp(camera.position.y, 10, 0.05);
+
+            document.getElementById('photo-counter').classList.remove('visible');
+            document.getElementById('swipe-indicator').classList.remove('visible');
+        }
+
+        function animateExplodeMode(time) {
+            // Expand galaxy
+            const targetScale = 2.0;
+            if(galaxyCore) {
+                galaxyCore.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.05);
+            }
+            if(galaxyDisk) {
+                galaxyDisk.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.05);
+            }
+
+            // Scatter planets
+            planets.forEach((planet, i) => {
+                const angle = (i / planets.length) * Math.PI * 2;
+                const radius = 80;
+                const targetX = radius * Math.cos(angle);
+                const targetZ = radius * Math.sin(angle);
+                const targetY = (Math.sin(time + i) * 5);
+
+                planet.position.x = THREE.MathUtils.lerp(planet.position.x, targetX, 0.05);
+                planet.position.z = THREE.MathUtils.lerp(planet.position.z, targetZ, 0.05);
+                planet.position.y = THREE.MathUtils.lerp(planet.position.y, targetY, 0.05);
+            });
+
+            // Show photos in orbit
+            const baseAngle = time * 0.2;
+            const angleStep = (Math.PI * 2) / CONFIG.photoCount;
+
+            photoMeshes.forEach((mesh, i) => {
+                mesh.visible = true;
+                
+                const angle = baseAngle + i * angleStep;
+                const x = Math.sin(angle) * CONFIG.photoOrbitRadius;
+                const z = Math.cos(angle) * CONFIG.photoOrbitRadius;
+                const y = Math.sin(time * 0.5 + i) * 3;
+
+                mesh.position.lerp(new THREE.Vector3(x, y, z), 0.1);
+                mesh.lookAt(camera.position);
+
+                // Scale based on depth
+                const targetScale = (z > 0) ? 1.2 : 0.8;
+                mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+            });
+
+            // Find closest photo
+            let maxZ = -999;
+            let closestIndex = 0;
+            photoMeshes.forEach((mesh, i) => {
+                if(mesh.position.z > maxZ) {
+                    maxZ = mesh.position.z;
+                    closestIndex = i;
+                }
+            });
+            currentPhotoIndex = closestIndex;
+
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, 80, 0.05);
+            camera.position.y = THREE.MathUtils.lerp(camera.position.y, 0, 0.05);
+
+            document.getElementById('photo-counter').classList.add('visible');
+            document.getElementById('photo-counter').textContent = `${currentPhotoIndex + 1} / ${CONFIG.photoCount}`;
+            document.getElementById('swipe-indicator').classList.add('visible');
+        }
+
+        function animatePhotoMode(time) {
+            // Contract galaxy
+            const targetScale = 0.5;
+            if(galaxyCore) {
+                galaxyCore.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.05);
+            }
+            if(galaxyDisk) {
+                galaxyDisk.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.05);
+            }
+
+            // Hide planets
+            planets.forEach(planet => {
+                planet.scale.lerp(new THREE.Vector3(0.1, 0.1, 0.1), 0.1);
+            });
+
+            // Show selected photo
+            photoMeshes.forEach((mesh, i) => {
+                if(i === currentPhotoIndex) {
+                    mesh.visible = true;
+                    mesh.position.lerp(new THREE.Vector3(0, 0, 70), 0.1);
+                    mesh.scale.lerp(new THREE.Vector3(6, 6, 6), 0.1);
+                    mesh.lookAt(camera.position);
+                    mesh.rotation.z = 0;
+                } else {
+                    mesh.scale.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+                    if(mesh.scale.x < 0.01) mesh.visible = false;
+                }
+            });
+
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, 100, 0.05);
+
+            document.getElementById('photo-counter').classList.add('visible');
+            document.getElementById('photo-counter').textContent = `${currentPhotoIndex + 1} / ${CONFIG.photoCount}`;
+            document.getElementById('swipe-indicator').classList.remove('visible');
+        }
+
+        // ==========================================
+        // HAND GESTURE DETECTION
+        // ==========================================
+        function startHandTracking() {
+            const video = document.getElementsByClassName('input_video')[0];
+            const canvas = document.getElementById('camera-preview');
+            const ctx = canvas.getContext('2d');
+            const statusBadge = document.getElementById('status-badge');
+
+            let frameCnt = 0;
+            const hands = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 0,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            hands.onResults(results => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+                if(results.multiHandLandmarks.length > 0) {
+                    const lm = results.multiHandLandmarks[0];
+                    
+                    // Track hand X position
+                    prevHandX = handX;
+                    handX = lm[9].x;
+                    swipeVelocity = handX - prevHandX;
+
+                    // Calculate gestures
+                    const tips = [8, 12, 16, 20];
+                    const wrist = lm[0];
+                    let openDist = 0;
+                    tips.forEach(i => {
+                        openDist += Math.hypot(lm[i].x - wrist.x, lm[i].y - wrist.y);
+                    });
+                    const avgDist = openDist / 4;
+
+                    // Detect swipe gesture
+                    if(state === 'EXPLODE' && Math.abs(swipeVelocity) > CONFIG.swipeThreshold) {
+                        if(swipeVelocity > 0) {
+                            // Swipe right -> previous photo
+                            currentPhotoIndex = (currentPhotoIndex - 1 + CONFIG.photoCount) % CONFIG.photoCount;
+                        } else {
+                            // Swipe left -> next photo
+                            currentPhotoIndex = (currentPhotoIndex + 1) % CONFIG.photoCount;
+                        }
+                    }
+
+                    // State transitions
+                    if(avgDist < 0.25) {
+                        // Fist -> GALAXY
+                        state = 'GALAXY';
+                        statusBadge.innerHTML = '✊ THU GALAXY';
+                        statusBadge.style.color = '#00ffff';
+                        statusBadge.style.borderColor = 'rgba(0, 255, 255, 0.6)';
+                    } else if(avgDist > 0.45) {
+                        // Open hand -> EXPLODE
+                        state = 'EXPLODE';
+                        statusBadge.innerHTML = '🖐 KHÁM PHÁ HÀNH TINH';
+                        statusBadge.style.color = '#ff00ff';
+                        statusBadge.style.borderColor = 'rgba(255, 0, 255, 0.6)';
+                    } else {
+                        // Partial -> PHOTO
+                        state = 'PHOTO';
+                        statusBadge.innerHTML = '📸 XEM ẢNH';
+                        statusBadge.style.color = '#ffff00';
+                        statusBadge.style.borderColor = 'rgba(255, 255, 0, 0.6)';
+                    }
+                } else {
+                    // No hand -> default GALAXY
+                    state = 'GALAXY';
+                    statusBadge.innerHTML = '🌌 KHÁM PHÁ VŨ TRỤ 🌌';
+                    statusBadge.style.color = '#00ffff';
+                    statusBadge.style.borderColor = 'rgba(0, 255, 255, 0.6)';
+                }
+            });
+
+            const cameraUtils = new Camera(video, {
+                onFrame: async () => {
+                    frameCnt++;
+                    if(frameCnt % 2 !== 0) return;
+                    await hands.send({ image: video });
+                },
+                width: 640,
+                height: 480
+            });
+
+            cameraUtils.start();
+        }
+
+        // ==========================================
+        // START SYSTEM
+        // ==========================================
+        function startSystem() {
+            const splash = document.getElementById('splash-screen');
+            splash.classList.add('hidden');
+
+            setTimeout(() => {
+                splash.style.display = 'none';
+                document.getElementById('ui-layer').style.display = 'block';
+            }, 1000);
+
+            // Start music
+            bgMusic.play().catch(e => console.log('Music autoplay blocked:', e));
+
+            // Initialize 3D
+            init3D();
+
+            // Start hand tracking
+            startHandTracking();
+        }
+
+        // ==========================================
+        // EVENT LISTENERS
+        // ==========================================
+        document.getElementById('start-button').addEventListener('click', startSystem);
+
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            composer.setSize(window.innerWidth, window.innerHeight);
+            if(camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
         });
 
-        animate();
+        // Custom cursor tracking
+        document.addEventListener('mousemove', (e) => {
+            const cursor = document.getElementById('custom-cursor');
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
 
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if(e.key === 'ArrowLeft') {
+                currentPhotoIndex = (currentPhotoIndex - 1 + CONFIG.photoCount) % CONFIG.photoCount;
+            } else if(e.key === 'ArrowRight') {
+                currentPhotoIndex = (currentPhotoIndex + 1) % CONFIG.photoCount;
+            } else if(e.key === ' ') {
+                state = (state === 'GALAXY') ? 'EXPLODE' : 'GALAXY';
+            }
+        });
+
+        // Error handling
+        window.addEventListener('error', (e) => {
+            console.error('Error:', e.error);
+        });
     </script>
 </body>
 </html>
