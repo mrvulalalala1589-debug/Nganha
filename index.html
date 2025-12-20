@@ -217,22 +217,83 @@
         }
 
         /* Camera Preview */
-        #camera-preview {
+        #camera-container {
             position: absolute;
             top: 20px;
             right: 20px;
-            width: 140px;
-            height: 105px;
-            border: 2px solid rgba(0, 255, 255, 0.4);
-            transform: scaleX(-1);
-            opacity: 0.5;
-            border-radius: 12px;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
-            transition: opacity 0.3s ease;
+            transition: all 0.5s ease;
+            z-index: 200;
         }
 
-        #camera-preview:hover {
-            opacity: 0.9;
+        #camera-container.minimized {
+            width: 160px;
+            height: 120px;
+        }
+
+        #camera-container.expanded {
+            width: 400px;
+            height: 300px;
+        }
+
+        #camera-preview {
+            width: 100%;
+            height: 100%;
+            border: 3px solid rgba(0, 255, 255, 0.6);
+            transform: scaleX(-1);
+            border-radius: 12px;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.5);
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        #camera-toggle {
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(0, 255, 255, 0.6);
+            color: #00ffff;
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+        }
+
+        #camera-toggle:hover {
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+
+        #camera-status {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #00ff00;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            border: 1px solid rgba(0, 255, 0, 0.5);
+        }
+
+        #camera-status.detecting {
+            color: #00ff00;
+            border-color: rgba(0, 255, 0, 0.8);
+            animation: detectPulse 1s ease-in-out infinite;
+        }
+
+        #camera-status.no-hand {
+            color: #ff9900;
+            border-color: rgba(255, 153, 0, 0.5);
+        }
+
+        @keyframes detectPulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(0, 255, 0, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.6); }
         }
 
         /* Photo Counter */
@@ -362,13 +423,19 @@
     <!-- Swipe Indicator -->
     <div id="swipe-indicator">← PHẤT TAY ĐỂ LƯỚT ẢNH →</div>
 
+    <!-- Camera Container with Toggle -->
+    <div id="camera-container" class="minimized">
+        <canvas id="camera-preview"></canvas>
+        <div id="camera-status" class="no-hand">Đang tìm tay...</div>
+        <button id="camera-toggle" onclick="toggleCamera()">📹 MỞ RỘNG</button>
+    </div>
+
     <!-- Canvas Container -->
     <div id="canvas-container"></div>
 
     <!-- Video Elements -->
     <div class="video-container">
         <video class="input_video"></video>
-        <canvas id="camera-preview"></canvas>
     </div>
 
     <script>
@@ -1078,6 +1145,80 @@
         }
 
         // ==========================================
+        // CAMERA TOGGLE
+        // ==========================================
+        let cameraExpanded = false;
+        
+        function toggleCamera() {
+            const container = document.getElementById('camera-container');
+            const button = document.getElementById('camera-toggle');
+            
+            cameraExpanded = !cameraExpanded;
+            
+            if(cameraExpanded) {
+                container.classList.remove('minimized');
+                container.classList.add('expanded');
+                button.textContent = '📹 THU NHỎ';
+            } else {
+                container.classList.remove('expanded');
+                container.classList.add('minimized');
+                button.textContent = '📹 MỞ RỘNG';
+            }
+        }
+
+        // ==========================================
+        // DRAW HAND SKELETON
+        // ==========================================
+        function drawHandLandmarks(ctx, landmarks, width, height) {
+            // Draw connections
+            const connections = [
+                [0,1],[1,2],[2,3],[3,4], // Thumb
+                [0,5],[5,6],[6,7],[7,8], // Index
+                [0,9],[9,10],[10,11],[11,12], // Middle
+                [0,13],[13,14],[14,15],[15,16], // Ring
+                [0,17],[17,18],[18,19],[19,20], // Pinky
+                [5,9],[9,13],[13,17] // Palm
+            ];
+
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+            ctx.lineWidth = 3;
+            
+            connections.forEach(([start, end]) => {
+                const startPoint = landmarks[start];
+                const endPoint = landmarks[end];
+                
+                ctx.beginPath();
+                ctx.moveTo(startPoint.x * width, startPoint.y * height);
+                ctx.lineTo(endPoint.x * width, endPoint.y * height);
+                ctx.stroke();
+            });
+
+            // Draw landmarks
+            landmarks.forEach((landmark, i) => {
+                const x = landmark.x * width;
+                const y = landmark.y * height;
+                
+                // Different colors for different parts
+                if(i === 0) {
+                    ctx.fillStyle = '#ff0066'; // Wrist - pink
+                } else if([4,8,12,16,20].includes(i)) {
+                    ctx.fillStyle = '#00ff00'; // Fingertips - green
+                } else {
+                    ctx.fillStyle = '#00ffff'; // Others - cyan
+                }
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // White border
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        }
+
+        // ==========================================
         // HAND GESTURE DETECTION
         // ==========================================
         function startHandTracking() {
@@ -1085,6 +1226,7 @@
             const canvas = document.getElementById('camera-preview');
             const ctx = canvas.getContext('2d');
             const statusBadge = document.getElementById('status-badge');
+            const cameraStatus = document.getElementById('camera-status');
 
             let frameCnt = 0;
             const hands = new Hands({
@@ -1099,11 +1241,18 @@
             });
 
             hands.onResults(results => {
+                // Clear and draw video frame
+                ctx.save();
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+                ctx.scale(-1, 1);
+                ctx.drawImage(results.image, -canvas.width, 0, canvas.width, canvas.height);
+                ctx.restore();
 
                 if(results.multiHandLandmarks.length > 0) {
                     const lm = results.multiHandLandmarks[0];
+                    
+                    // Draw hand skeleton
+                    drawHandLandmarks(ctx, lm, canvas.width, canvas.height);
                     
                     // Track hand X position
                     prevHandX = handX;
@@ -1137,25 +1286,45 @@
                         statusBadge.innerHTML = '✊ THU GALAXY';
                         statusBadge.style.color = '#00ffff';
                         statusBadge.style.borderColor = 'rgba(0, 255, 255, 0.6)';
+                        cameraStatus.textContent = '✊ NẮM TAY';
+                        cameraStatus.className = 'detecting';
+                        cameraStatus.style.color = '#00ffff';
                     } else if(avgDist > 0.45) {
                         // Open hand -> EXPLODE
                         state = 'EXPLODE';
                         statusBadge.innerHTML = '🖐 KHÁM PHÁ HÀNH TINH';
                         statusBadge.style.color = '#ff00ff';
                         statusBadge.style.borderColor = 'rgba(255, 0, 255, 0.6)';
+                        cameraStatus.textContent = '🖐 XÒE TAY';
+                        cameraStatus.className = 'detecting';
+                        cameraStatus.style.color = '#ff00ff';
                     } else {
                         // Partial -> PHOTO
                         state = 'PHOTO';
                         statusBadge.innerHTML = '📸 XEM ẢNH';
                         statusBadge.style.color = '#ffff00';
                         statusBadge.style.borderColor = 'rgba(255, 255, 0, 0.6)';
+                        cameraStatus.textContent = '📸 ĐANG XEM';
+                        cameraStatus.className = 'detecting';
+                        cameraStatus.style.color = '#ffff00';
                     }
+
+                    // Draw gesture info on canvas
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(10, canvas.height - 40, 200, 30);
+                    ctx.fillStyle = '#00ffff';
+                    ctx.font = '14px Space Mono';
+                    ctx.fillText(`Độ mở: ${(avgDist * 100).toFixed(0)}%`, 15, canvas.height - 18);
+
                 } else {
-                    // No hand -> default GALAXY
+                    // No hand detected
                     state = 'GALAXY';
                     statusBadge.innerHTML = '🌌 KHÁM PHÁ VŨ TRỤ 🌌';
                     statusBadge.style.color = '#00ffff';
                     statusBadge.style.borderColor = 'rgba(0, 255, 255, 0.6)';
+                    cameraStatus.textContent = 'Đang tìm tay...';
+                    cameraStatus.className = 'no-hand';
+                    cameraStatus.style.color = '#ff9900';
                 }
             });
 
