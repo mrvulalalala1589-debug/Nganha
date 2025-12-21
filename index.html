@@ -3,1078 +3,507 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Galaxy Adventure - Phiêu Lưu Vũ Trụ</title>
+    <title>Stellar Portrait - Grand Luxury Edition</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r159/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Montserrat:wght@300;400;600&display=swap');
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        body { 
-            margin: 0; 
-            overflow: hidden; 
-            background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
-            font-family: 'Space Mono', monospace;
-            cursor: none;
-        }
-
-        /* Custom Cursor */
-        #custom-cursor {
-            position: fixed;
-            width: 30px;
-            height: 30px;
-            border: 2px solid rgba(0, 255, 255, 0.6);
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 10000;
-            transition: transform 0.1s ease;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4),
-                        inset 0 0 10px rgba(0, 255, 255, 0.2);
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0f 100%);
+            font-family: 'Montserrat', sans-serif;
         }
         
-        #custom-cursor::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 6px;
-            height: 6px;
-            background: #00ffff;
-            border-radius: 50%;
-            box-shadow: 0 0 10px #00ffff;
-        }
-
-        #canvas-container { 
-            width: 100%; 
-            height: 100vh; 
-            display: block; 
-            position: relative;
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
         }
         
         /* Splash Screen */
-        #splash-screen {
+        #splash {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100vh;
-            background: radial-gradient(ellipse at center, #1a1a3a 0%, #000000 100%);
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0f 100%);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
-            transition: opacity 1s ease-out;
+            z-index: 9999;
+            transition: opacity 1.5s ease;
         }
-
-        #splash-screen.hidden {
+        
+        #splash.hidden {
             opacity: 0;
             pointer-events: none;
         }
-
+        
         .splash-title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: clamp(3rem, 10vw, 8rem);
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(3rem, 8vw, 7rem);
             font-weight: 900;
-            background: linear-gradient(45deg, #00ffff, #ff00ff, #ffff00, #00ffff);
-            background-size: 300% 300%;
+            background: linear-gradient(135deg, #d4af37 0%, #ffd700 50%, #d4af37 100%);
+            background-size: 200% 200%;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            text-align: center;
-            animation: gradientShift 3s ease infinite, floatTitle 3s ease-in-out infinite;
-            text-shadow: 0 0 80px rgba(0, 255, 255, 0.5);
-            letter-spacing: 0.1em;
-            margin-bottom: 2rem;
+            animation: shimmer 3s ease-in-out infinite;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
         }
-
-        @keyframes gradientShift {
+        
+        @keyframes shimmer {
             0%, 100% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
         }
-
-        @keyframes floatTitle {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-        }
-
+        
         .splash-subtitle {
-            font-family: 'Space Mono', monospace;
-            font-size: clamp(1rem, 3vw, 1.5rem);
-            color: rgba(0, 255, 255, 0.7);
-            text-align: center;
-            margin-bottom: 4rem;
-            letter-spacing: 0.2em;
-            animation: pulse 2s ease-in-out infinite;
+            font-size: clamp(1rem, 2.5vw, 1.5rem);
+            font-weight: 300;
+            color: rgba(212, 175, 55, 0.8);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            margin-bottom: 3rem;
         }
-
+        
         #start-button {
-            position: relative;
             padding: 20px 60px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #00ffff;
-            background: transparent;
-            border: 3px solid #00ffff;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #0a0a0f;
+            background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%);
+            border: none;
             border-radius: 50px;
             cursor: pointer;
-            transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 0.2em;
-            overflow: hidden;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3),
-                        inset 0 0 30px rgba(0, 255, 255, 0.1);
-            animation: pulseButton 2s ease-in-out infinite;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 40px rgba(212, 175, 55, 0.4);
         }
-
-        #start-button::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(0, 255, 255, 0.2);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s ease, height 0.6s ease;
-        }
-
-        #start-button:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-
+        
         #start-button:hover {
-            background: rgba(0, 255, 255, 0.1);
-            box-shadow: 0 0 50px rgba(0, 255, 255, 0.6),
-                        inset 0 0 50px rgba(0, 255, 255, 0.2);
-            transform: scale(1.1);
+            transform: translateY(-2px);
+            box-shadow: 0 15px 50px rgba(212, 175, 55, 0.6);
         }
-
-        @keyframes pulseButton {
-            0%, 100% { box-shadow: 0 0 30px rgba(0, 255, 255, 0.3), inset 0 0 30px rgba(0, 255, 255, 0.1); }
-            50% { box-shadow: 0 0 60px rgba(0, 255, 255, 0.6), inset 0 0 50px rgba(0, 255, 255, 0.3); }
-        }
-
+        
         /* UI Layer */
         #ui-layer {
-            position: absolute;
+            position: fixed;
             bottom: 40px;
             width: 100%;
             text-align: center;
-            pointer-events: none;
             z-index: 100;
+            pointer-events: none;
+            display: none;
         }
         
         #status-badge {
             display: inline-block;
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid rgba(0, 255, 255, 0.6);
-            color: #00ffff;
-            padding: 15px 40px;
+            background: rgba(10, 10, 15, 0.9);
+            border: 2px solid rgba(212, 175, 55, 0.6);
+            color: #d4af37;
+            padding: 15px 50px;
             border-radius: 50px;
-            font-size: 1.2rem;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.3rem;
             font-weight: 700;
-            font-family: 'Orbitron', sans-serif;
             text-transform: uppercase;
-            letter-spacing: 0.15em;
-            box-shadow: 0 0 40px rgba(0, 255, 255, 0.4),
-                        inset 0 0 20px rgba(0, 255, 255, 0.1);
-            text-shadow: 0 0 20px #00ffff;
-            animation: statusGlow 2s ease-in-out infinite;
+            letter-spacing: 0.2em;
+            box-shadow: 0 0 40px rgba(212, 175, 55, 0.3);
+            animation: statusPulse 2s ease-in-out infinite;
         }
-
-        @keyframes statusGlow {
-            0%, 100% { 
-                box-shadow: 0 0 40px rgba(0, 255, 255, 0.4), inset 0 0 20px rgba(0, 255, 255, 0.1);
-                border-color: rgba(0, 255, 255, 0.6);
-            }
-            50% { 
-                box-shadow: 0 0 60px rgba(0, 255, 255, 0.7), inset 0 0 30px rgba(0, 255, 255, 0.2);
-                border-color: rgba(0, 255, 255, 1);
-            }
+        
+        @keyframes statusPulse {
+            0%, 100% { box-shadow: 0 0 40px rgba(212, 175, 55, 0.3); }
+            50% { box-shadow: 0 0 60px rgba(212, 175, 55, 0.6); }
         }
-
+        
         .gesture-guide {
-            color: rgba(255, 255, 255, 0.6);
+            margin-top: 20px;
+            color: rgba(212, 175, 55, 0.7);
             font-size: 0.9rem;
-            margin-top: 15px;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
-            letter-spacing: 0.05em;
-            line-height: 1.6;
+            letter-spacing: 0.1em;
         }
-
+        
         .gesture-guide span {
-            color: #00ffff;
-            font-weight: 700;
+            color: #d4af37;
+            font-weight: 600;
         }
-
-        .gesture-guide .control-row {
-            display: block;
-            margin: 5px 0;
-        }
-
-        /* Camera Preview */
+        
+        /* Camera */
         #camera-container {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            transition: all 0.5s ease;
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            width: 180px;
+            height: 135px;
             z-index: 200;
+            display: none;
         }
-
-        #camera-container.minimized {
-            width: 160px;
-            height: 120px;
-        }
-
-        #camera-container.expanded {
-            width: 400px;
-            height: 300px;
-        }
-
+        
         #camera-preview {
             width: 100%;
             height: 100%;
-            border: 3px solid rgba(0, 255, 255, 0.6);
+            border: 3px solid rgba(212, 175, 55, 0.6);
+            border-radius: 15px;
             transform: scaleX(-1);
-            border-radius: 12px;
-            box-shadow: 0 0 40px rgba(0, 255, 255, 0.5);
-            background: rgba(0, 0, 0, 0.8);
+            box-shadow: 0 0 40px rgba(212, 175, 55, 0.4);
+            background: rgba(10, 10, 15, 0.9);
         }
-
-        #camera-toggle {
-            position: absolute;
-            bottom: -40px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid rgba(0, 255, 255, 0.6);
-            color: #00ffff;
-            padding: 8px 20px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-family: 'Space Mono', monospace;
-            font-size: 0.8rem;
-            transition: all 0.3s ease;
-            pointer-events: auto;
-        }
-
-        #camera-toggle:hover {
-            background: rgba(0, 255, 255, 0.2);
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-        }
-
+        
         #camera-status {
             position: absolute;
             top: 10px;
             left: 10px;
-            background: rgba(0, 0, 0, 0.8);
-            color: #00ff00;
+            background: rgba(10, 10, 15, 0.9);
+            color: #d4af37;
             padding: 5px 15px;
-            border-radius: 15px;
-            font-family: 'Space Mono', monospace;
+            border-radius: 20px;
             font-size: 0.75rem;
-            border: 1px solid rgba(0, 255, 0, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.5);
         }
-
-        #camera-status.detecting {
-            color: #00ff00;
-            border-color: rgba(0, 255, 0, 0.8);
-            animation: detectPulse 1s ease-in-out infinite;
-        }
-
-        #camera-status.no-hand {
-            color: #ff9900;
-            border-color: rgba(255, 153, 0, 0.5);
-        }
-
-        @keyframes detectPulse {
-            0%, 100% { box-shadow: 0 0 10px rgba(0, 255, 0, 0.3); }
-            50% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.6); }
-        }
-
-        /* Photo Navigation Arrows */
-        .photo-nav {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(0, 0, 0, 0.7);
-            border: 2px solid rgba(0, 255, 255, 0.5);
-            color: #00ffff;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            transition: all 0.3s ease;
-            z-index: 150;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .photo-nav.visible {
-            opacity: 0.7;
-            pointer-events: auto;
-        }
-
-        .photo-nav:hover {
-            opacity: 1;
-            background: rgba(0, 255, 255, 0.2);
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
-            transform: translateY(-50%) scale(1.1);
-        }
-
-        #nav-left {
-            left: 30px;
-        }
-
-        #nav-right {
-            right: 30px;
-        }
-        #photo-counter {
-            position: absolute;
-            top: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
-            color: #00ffff;
-            text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
-            letter-spacing: 0.2em;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-        }
-
-        #photo-counter.visible {
-            opacity: 1;
-        }
-
-        /* Swipe Indicator */
-        #swipe-indicator {
-            position: absolute;
-            bottom: 120px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-family: 'Space Mono', monospace;
-            font-size: 1rem;
-            color: rgba(255, 255, 255, 0.7);
-            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-            opacity: 0;
-            transition: opacity 0.5s ease;
-            animation: swipeHint 2s ease-in-out infinite;
-        }
-
-        #swipe-indicator.visible {
-            opacity: 1;
-        }
-
-        @keyframes swipeHint {
-            0%, 100% { transform: translateX(-50%) translateY(0); }
-            50% { transform: translateX(-50%) translateY(-10px); }
-        }
-
-        /* Loading Animation */
-        .loading-dots {
-            display: inline-block;
-            margin-left: 10px;
-        }
-
-        .loading-dots span {
-            display: inline-block;
-            animation: loadingDot 1.4s infinite ease-in-out both;
-        }
-
-        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
-        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
-
-        @keyframes loadingDot {
-            0%, 80%, 100% { opacity: 0; }
-            40% { opacity: 1; }
-        }
-
-        /* Error/Info Messages */
-        #message-box {
-            position: absolute;
+        
+        .input_video { display: none; }
+        
+        #loading {
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
-            border: 2px solid #ff0066;
-            color: #ff0066;
-            padding: 30px 50px;
-            border-radius: 20px;
-            font-family: 'Space Mono', monospace;
+            color: #d4af37;
+            font-size: 1.5rem;
+            font-family: 'Playfair Display', serif;
+            z-index: 9998;
+            display: none;
             text-align: center;
-            display: none;
-            z-index: 999;
-            box-shadow: 0 0 50px rgba(255, 0, 102, 0.5);
         }
-
-        #message-box.visible {
-            display: block;
-            animation: fadeIn 0.5s ease;
+        
+        #loading-bar {
+            width: 300px;
+            height: 4px;
+            background: rgba(212, 175, 55, 0.2);
+            border-radius: 2px;
+            margin-top: 20px;
+            overflow: hidden;
         }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        }
-
-        .video-container {
-            display: none;
+        
+        #loading-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #d4af37, #ffd700);
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.8);
         }
     </style>
 </head>
 <body>
-    <!-- Custom Cursor -->
-    <div id="custom-cursor"></div>
-
-    <!-- Splash Screen -->
-    <div id="splash-screen">
-        <div class="splash-title">GALAXY</div>
-        <div class="splash-subtitle">KHÁM PHÁ VŨ TRỤ</div>
-        <button id="start-button">
-            <span>CHẠM ĐỂ PHIÊU LƯU</span>
-        </button>
+    <div id="splash">
+        <div class="splash-title">STELLAR PORTRAIT</div>
+        <div class="splash-subtitle">Grand Luxury Edition</div>
+        <button id="start-button" onclick="startExperience()">Enter Experience</button>
     </div>
-
-    <!-- Message Box -->
-    <div id="message-box"></div>
-
-    <!-- Main UI -->
-    <div id="ui-layer" style="display: none;">
-        <div id="status-badge">🌌 KHÁM PHÁ VŨ TRỤ 🌌</div>
-        <div class="gesture-guide">
-            <div class="control-row">
-                <span>✊ NẮM TAY / SPACE:</span> Thu/Bung Galaxy
-            </div>
-            <div class="control-row">
-                <span>🖱️ GIỮ CHUỘT + KÉO:</span> Lướt Ảnh
-            </div>
-            <div class="control-row">
-                <span>☝️ DƠ TRÁI/PHẢI / ← →:</span> Chuyển Ảnh
-            </div>
+    
+    <div id="loading">
+        <div>Creating Stellar Portrait...</div>
+        <div id="loading-bar">
+            <div id="loading-fill"></div>
         </div>
     </div>
-
-    <!-- Photo Navigation Arrows -->
-    <div id="nav-left" class="photo-nav" onclick="prevPhoto()">‹</div>
-    <div id="nav-right" class="photo-nav" onclick="nextPhoto()">›</div>
-
-    <!-- Photo Counter -->
-    <div id="photo-counter">1 / 10</div>
-
-    <!-- Swipe Indicator -->
-    <div id="swipe-indicator">← PHẤT TAY ĐỂ LƯỚT ẢNH →</div>
-
-    <!-- Camera Container with Toggle -->
-    <div id="camera-container" class="minimized">
+    
+    <div id="camera-container">
         <canvas id="camera-preview"></canvas>
-        <div id="camera-status" class="no-hand">Đang tìm tay...</div>
-        <button id="camera-toggle" onclick="toggleCamera()">📹 MỞ RỘNG</button>
+        <div id="camera-status">Ready</div>
     </div>
-
-    <!-- Canvas Container -->
+    
+    <div id="ui-layer">
+        <div id="status-badge">✨ PORTRAIT FORMED ✨</div>
+        <div class="gesture-guide">
+            <span>OPEN HAND</span> Unleash Memories &nbsp;|&nbsp; 
+            <span>CLOSE FIST</span> Reform Portrait &nbsp;|&nbsp;
+            <span>MOVE HAND</span> Navigate Photos
+        </div>
+    </div>
+    
     <div id="canvas-container"></div>
-
-    <!-- Video Elements -->
-    <div class="video-container">
-        <video class="input_video"></video>
-    </div>
+    <video class="input_video"></video>
 
     <script>
         // ==========================================
         // CONFIGURATION
         // ==========================================
         const CONFIG = {
-            // Galaxy Core
-            coreParticles: 30000,
-            diskParticles: 70000,
-            
-            // Stars
-            starCount: 5000,
-            
-            // Planets
-            planetCount: 50,
-            
-            // Photos
+            particleCount: 20000,
+            chaosRadius: 100,
+            transitionSpeed: 0.04,
+            photoOrbitRadius: 40,
             photoCount: 10,
-            photoOrbitRadius: 30,
-            photoMaxScale: 3.5,  // Giảm từ 6 xuống 3.5 để không tràn màn hình
-            photoTransitionSpeed: 0.6, // Tốc độ chuyển ảnh chậm hơn
-            
-            // States
-            explodeRadius: 70,
-            galaxyRadius: 50,
-            
-            // Animation
-            rotationSpeed: 0.001,
-            pointingThreshold: 0.3, // Ngưỡng nhận diện dơ ngón tay
-            pointingCooldown: 500 // ms giữa các lần chuyển ảnh
+            rotationSpeed: 0.0005
         };
-
-        const MUSIC_URL = "./audio.mp3";
-        let bgMusic = new Audio(MUSIC_URL);
-        bgMusic.loop = true;
-        bgMusic.volume = 0.6;
 
         // Photo files
-        const photoFiles = [];
+        const PHOTO_FILES = [];
         for(let i = 1; i <= CONFIG.photoCount; i++) {
-            photoFiles.push(`./image${i}.png`);
+            PHOTO_FILES.push(`./image${i}.png`);
         }
 
         // ==========================================
-        // GLOBAL VARIABLES
+        // GLOBALS
         // ==========================================
         let scene, camera, renderer;
-        let galaxyCore, galaxyDisk, starField;
-        let planets = [];
+        let particleSystem, particles;
         let photoMeshes = [];
-        let nebulaParticles;
+        let portraitGeometry = [];
         
-        let state = 'GALAXY'; // GALAXY, EXPLODE, PHOTO
-        let currentPhotoIndex = 0;
+        let state = 'FORMED'; // FORMED, CHAOS, PHOTO
+        let progress = 1.0; // 0 = chaos, 1 = formed
+        let targetProgress = 1.0;
+        
         let handX = 0.5;
-        let prevHandX = 0.5;
-        let lastPhotoChangeTime = 0;
-        
-        // Mouse/Touch controls
-        let isDragging = false;
-        let dragStartX = 0;
-        let dragThreshold = 50;
+        let handY = 0.5;
+        let handZ = 0.5;
+        let selectedPhotoIndex = 0;
 
         // ==========================================
-        // PHOTO NAVIGATION
+        // PORTRAIT DATA PROCESSING
         // ==========================================
-        function nextPhoto() {
-            const now = Date.now();
-            if(now - lastPhotoChangeTime < CONFIG.pointingCooldown) return;
-            
-            currentPhotoIndex = (currentPhotoIndex + 1) % CONFIG.photoCount;
-            lastPhotoChangeTime = now;
-            
-            // Visual feedback
-            const btn = document.getElementById('nav-right');
-            btn.style.transform = 'translateY(-50%) scale(1.3)';
-            setTimeout(() => {
-                btn.style.transform = 'translateY(-50%) scale(1)';
-            }, 200);
+        async function loadAndProcessPortrait() {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Process size
+                    const processWidth = 220;
+                    const processHeight = Math.floor((img.height / img.width) * processWidth);
+                    canvas.width = processWidth;
+                    canvas.height = processHeight;
+                    
+                    ctx.drawImage(img, 0, 0, processWidth, processHeight);
+                    const pixels = ctx.getImageData(0, 0, processWidth, processHeight).data;
+                    
+                    const points = [];
+                    const portraitHeight = Math.floor(processHeight * 0.75);
+                    
+                    for(let y = 0; y < portraitHeight; y++) {
+                        for(let x = 0; x < processWidth; x++) {
+                            const idx = (y * processWidth + x) * 4;
+                            const r = pixels[idx];
+                            const g = pixels[idx + 1];
+                            const b = pixels[idx + 2];
+                            const brightness = (r + g + b) / (3 * 255);
+                            
+                            // Center-focused sampling
+                            const cx = processWidth / 2;
+                            const cy = portraitHeight * 0.35;
+                            const dist = Math.sqrt(Math.pow(x - cx, 2) + Math.pow(y - cy, 2));
+                            const maxDist = Math.min(processWidth, portraitHeight) / 2;
+                            const normalizedDist = dist / maxDist;
+                            
+                            let sampleRate;
+                            if(normalizedDist < 0.3) sampleRate = 2;
+                            else if(normalizedDist < 0.6) sampleRate = 3;
+                            else sampleRate = 5;
+                            
+                            if(x % sampleRate === 0 && y % sampleRate === 0) {
+                                const nx = (x / processWidth) * 2 - 1;
+                                const ny = -(y / portraitHeight) * 2 + 1;
+                                const nz = (brightness - 0.5) * 0.5;
+                                
+                                points.push({
+                                    x: nx * 35,
+                                    y: ny * 45,
+                                    z: nz * 25,
+                                    brightness: brightness
+                                });
+                            }
+                        }
+                    }
+                    
+                    resolve(points);
+                };
+                
+                // Use uploaded portrait (4.jpg)
+                img.src = './4.jpg';
+            });
         }
-
-        function prevPhoto() {
-            const now = Date.now();
-            if(now - lastPhotoChangeTime < CONFIG.pointingCooldown) return;
-            
-            currentPhotoIndex = (currentPhotoIndex - 1 + CONFIG.photoCount) % CONFIG.photoCount;
-            lastPhotoChangeTime = now;
-            
-            // Visual feedback
-            const btn = document.getElementById('nav-left');
-            btn.style.transform = 'translateY(-50%) scale(1.3)';
-            setTimeout(() => {
-                btn.style.transform = 'translateY(-50%) scale(1)';
-            }, 200);
-        }
-
-        // ==========================================
-        // TEXTURE CREATION
-        // ==========================================
-        function createGlowTexture(color1, color2) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 128;
-            canvas.height = 128;
-            const ctx = canvas.getContext('2d');
-            const cx = 64, cy = 64;
-
-            const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 64);
-            grd.addColorStop(0, color1);
-            grd.addColorStop(0.3, color2);
-            grd.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = grd;
-            ctx.fillRect(0, 0, 128, 128);
-
-            return new THREE.CanvasTexture(canvas);
-        }
-
-        function createStarTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 64;
-            canvas.height = 64;
-            const ctx = canvas.getContext('2d');
-            const cx = 32, cy = 32;
-
-            // Glow
-            const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 32);
-            grd.addColorStop(0, '#FFFFFF');
-            grd.addColorStop(0.1, '#FFFFAA');
-            grd.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = grd;
-            ctx.fillRect(0, 0, 64, 64);
-
-            // Cross sparkle
-            ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(cx - 15, cy);
-            ctx.lineTo(cx + 15, cy);
-            ctx.moveTo(cx, cy - 15);
-            ctx.lineTo(cx, cy + 15);
-            ctx.stroke();
-
-            return new THREE.CanvasTexture(canvas);
-        }
-
-        function createPlanetTexture(type) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 256;
-            const ctx = canvas.getContext('2d');
-
-            const colors = {
-                earth: ['#1e90ff', '#228b22', '#8b4513'],
-                mars: ['#cd5c5c', '#8b4513', '#a0522d'],
-                jupiter: ['#daa520', '#cd853f', '#d2691e'],
-                ice: ['#87ceeb', '#4682b4', '#b0e0e6'],
-                lava: ['#ff4500', '#ff6347', '#8b0000']
-            };
-
-            const palette = colors[type] || colors.earth;
-            
-            // Background
-            ctx.fillStyle = palette[0];
-            ctx.fillRect(0, 0, 256, 256);
-
-            // Stripes/patterns
-            for(let i = 0; i < 8; i++) {
-                ctx.fillStyle = palette[Math.floor(Math.random() * palette.length)];
-                ctx.globalAlpha = 0.3 + Math.random() * 0.4;
-                ctx.fillRect(0, i * 35 + Math.random() * 20, 256, 20 + Math.random() * 15);
-            }
-
-            // Craters/spots
-            ctx.globalAlpha = 0.5;
-            for(let i = 0; i < 15; i++) {
-                const x = Math.random() * 256;
-                const y = Math.random() * 256;
-                const r = 5 + Math.random() * 20;
-                ctx.fillStyle = palette[2];
-                ctx.beginPath();
-                ctx.arc(x, y, r, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            ctx.globalAlpha = 1;
-            return new THREE.CanvasTexture(canvas);
-        }
-
-        const textures = {
-            glow: createGlowTexture('#FFFFFF', '#00FFFF'),
-            cyan: createGlowTexture('#00FFFF', '#0088FF'),
-            magenta: createGlowTexture('#FF00FF', '#8800FF'),
-            yellow: createGlowTexture('#FFFF00', '#FF8800'),
-            star: createStarTexture()
-        };
 
         // ==========================================
-        // 3D SCENE INITIALIZATION
+        // 3D SCENE SETUP
         // ==========================================
         function init3D() {
             const container = document.getElementById('canvas-container');
             
-            // Scene
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000000, 0.0015);
-
-            // Camera
-            camera = new THREE.PerspectiveCamera(
-                60,
-                window.innerWidth / window.innerHeight,
-                0.1,
-                2000
-            );
-            camera.position.set(0, 10, 120);
-
-            // Renderer
-            renderer = new THREE.WebGLRenderer({ 
-                antialias: true, 
-                alpha: false 
-            });
+            scene.fog = new THREE.FogExp2(0x0a0a0f, 0.0015);
+            
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 130);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             container.appendChild(renderer.domElement);
-
-            // Create Galaxy
-            createGalaxyCore();
-            createGalaxyDisk();
-            createStarField();
-            createNebula();
-            createPlanets();
+            
+            createParticleSystem();
             createPhotos();
-
-            // Start animation
+            createLights();
             animate();
         }
 
-        // ==========================================
-        // GALAXY CORE (Center sphere)
-        // ==========================================
-        function createGalaxyCore() {
+        function createParticleSystem() {
             const positions = [];
             const colors = [];
             const sizes = [];
-
-            for(let i = 0; i < CONFIG.coreParticles; i++) {
-                // Sphere distribution
-                const radius = Math.random() * 15 + 5;
+            const chaosPositions = [];
+            const targetPositions = [];
+            
+            for(let i = 0; i < CONFIG.particleCount; i++) {
+                // Target: Portrait
+                const pointIndex = Math.floor(Math.random() * portraitGeometry.length);
+                const point = portraitGeometry[pointIndex];
+                
+                const variation = 2.5;
+                const tx = point.x + (Math.random() - 0.5) * variation;
+                const ty = point.y + (Math.random() - 0.5) * variation;
+                const tz = point.z + (Math.random() - 0.5) * variation;
+                
+                targetPositions.push(tx, ty, tz);
+                
+                // Chaos: Sphere
                 const theta = Math.random() * Math.PI * 2;
                 const phi = Math.acos(2 * Math.random() - 1);
-
-                const x = radius * Math.sin(phi) * Math.cos(theta);
-                const y = radius * Math.sin(phi) * Math.sin(theta);
-                const z = radius * Math.cos(phi);
-
-                positions.push(x, y, z);
-
-                // Color gradient (center white, edge cyan)
-                const dist = radius / 20;
-                const r = 1.0;
-                const g = 0.8 + dist * 0.2;
-                const b = 0.5 + dist * 0.5;
-                colors.push(r, g, b);
-
-                sizes.push(1.0 + Math.random() * 2.0);
+                const radius = Math.cbrt(Math.random()) * CONFIG.chaosRadius;
+                
+                const cx = radius * Math.sin(phi) * Math.cos(theta);
+                const cy = radius * Math.sin(phi) * Math.sin(theta);
+                const cz = radius * Math.cos(phi);
+                
+                chaosPositions.push(cx, cy, cz);
+                positions.push(tx, ty, tz);
+                
+                // Golden color gradient
+                const brightness = point.brightness;
+                const gold = 0.65 + brightness * 0.35;
+                colors.push(gold, gold * 0.75, gold * 0.2);
+                
+                sizes.push(0.4 + Math.random() * 1.2);
             }
-
+            
             const geometry = new THREE.BufferGeometry();
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
             geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
             geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-
+            geometry.userData = { chaos: chaosPositions, target: targetPositions };
+            
             const material = new THREE.ShaderMaterial({
                 uniforms: {
-                    time: { value: 0 }
+                    time: { value: 0 },
+                    progress: { value: progress }
                 },
                 vertexShader: `
                     attribute float size;
                     attribute vec3 color;
                     varying vec3 vColor;
                     uniform float time;
-
+                    uniform float progress;
+                    
                     void main() {
                         vColor = color;
-                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                        vec3 pos = position;
                         
-                        float pulse = 1.0 + sin(time * 2.0 + length(position) * 0.1) * 0.3;
+                        float chaos = 1.0 - progress;
+                        pos.y += sin(time * 0.5 + position.x * 0.1) * 1.0 * chaos;
+                        pos.x += cos(time * 0.5 + position.y * 0.1) * 1.0 * chaos;
+                        
+                        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                        float pulse = 1.0 + sin(time * 2.0 + length(position) * 0.05) * 0.3 * chaos;
                         gl_PointSize = size * pulse * (300.0 / -mvPosition.z);
                         gl_Position = projectionMatrix * mvPosition;
                     }
                 `,
                 fragmentShader: `
                     varying vec3 vColor;
-
+                    
                     void main() {
-                        float dist = length(gl_PointCoord - 0.5);
+                        vec2 center = gl_PointCoord - 0.5;
+                        float dist = length(center);
                         if(dist > 0.5) discard;
                         
                         float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
-                        gl_FragColor = vec4(vColor, alpha);
+                        alpha = pow(alpha, 1.2);
+                        
+                        vec3 glow = vColor * (1.0 + alpha * 0.8);
+                        gl_FragColor = vec4(glow, alpha);
                     }
                 `,
-                transparent: true,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-
-            galaxyCore = new THREE.Points(geometry, material);
-            scene.add(galaxyCore);
-        }
-
-        // ==========================================
-        // GALAXY DISK (Spiral arms)
-        // ==========================================
-        function createGalaxyDisk() {
-            const positions = [];
-            const colors = [];
-            const sizes = [];
-            const shifts = [];
-
-            for(let i = 0; i < CONFIG.diskParticles; i++) {
-                // Spiral distribution
-                const r = 15 + Math.random() * 35;
-                const angle = (Math.random() * Math.PI * 4) + (r * 0.1);
-                const spiral = Math.pow(r / 50, 0.5);
-                
-                const x = r * Math.cos(angle + spiral);
-                const z = r * Math.sin(angle + spiral);
-                const y = (Math.random() - 0.5) * 3;
-
-                positions.push(x, y, z);
-
-                // Color based on radius
-                const dist = r / 50;
-                const r_color = 0.5 + dist * 0.5;
-                const g_color = 0.3 + dist * 0.3;
-                const b_color = 1.0 - dist * 0.3;
-                colors.push(r_color, g_color, b_color);
-
-                sizes.push(0.5 + Math.random() * 1.5);
-
-                // Shift for animation
-                shifts.push(
-                    Math.random() * Math.PI * 2,
-                    Math.random() * Math.PI * 2,
-                    0.1 + Math.random() * 0.2,
-                    0.2 + Math.random() * 0.3
-                );
-            }
-
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-            geometry.setAttribute('shift', new THREE.Float32BufferAttribute(shifts, 4));
-
-            const material = new THREE.ShaderMaterial({
-                uniforms: {
-                    time: { value: 0 }
-                },
-                vertexShader: `
-                    attribute float size;
-                    attribute vec3 color;
-                    attribute vec4 shift;
-                    varying vec3 vColor;
-                    uniform float time;
-
-                    void main() {
-                        vColor = color;
-                        
-                        // Orbital motion
-                        float t = time * shift.z;
-                        float moveT = mod(shift.x + t, 6.28318);
-                        float moveS = mod(shift.y + t, 6.28318);
-                        
-                        vec3 newPos = position;
-                        newPos += vec3(
-                            cos(moveS) * sin(moveT),
-                            cos(moveT),
-                            sin(moveS) * sin(moveT)
-                        ) * shift.w;
-                        
-                        vec4 mvPosition = modelViewMatrix * vec4(newPos, 1.0);
-                        gl_PointSize = size * (200.0 / -mvPosition.z);
-                        gl_Position = projectionMatrix * mvPosition;
-                    }
-                `,
-                fragmentShader: `
-                    varying vec3 vColor;
-
-                    void main() {
-                        float dist = length(gl_PointCoord - 0.5);
-                        if(dist > 0.5) discard;
-                        
-                        float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
-                        gl_FragColor = vec4(vColor, alpha * 0.8);
-                    }
-                `,
-                transparent: true,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-
-            galaxyDisk = new THREE.Points(geometry, material);
-            scene.add(galaxyDisk);
-        }
-
-        // ==========================================
-        // BACKGROUND STARS
-        // ==========================================
-        function createStarField() {
-            const positions = [];
-            const sizes = [];
-
-            for(let i = 0; i < CONFIG.starCount; i++) {
-                const radius = 200 + Math.random() * 800;
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos(2 * Math.random() - 1);
-
-                const x = radius * Math.sin(phi) * Math.cos(theta);
-                const y = radius * Math.sin(phi) * Math.sin(theta);
-                const z = radius * Math.cos(phi);
-
-                positions.push(x, y, z);
-                sizes.push(0.5 + Math.random() * 2);
-            }
-
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-
-            const material = new THREE.PointsMaterial({
-                size: 2,
-                map: textures.star,
                 transparent: true,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
-                sizeAttenuation: true
+                vertexColors: true
             });
-
-            starField = new THREE.Points(geometry, material);
-            scene.add(starField);
-        }
-
-        // ==========================================
-        // NEBULA EFFECT
-        // ==========================================
-        function createNebula() {
-            const positions = [];
-            const colors = [];
-            const sizes = [];
-
-            for(let i = 0; i < 1000; i++) {
-                const radius = 40 + Math.random() * 60;
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos(2 * Math.random() - 1);
-
-                const x = radius * Math.sin(phi) * Math.cos(theta);
-                const y = radius * Math.sin(phi) * Math.sin(theta);
-                const z = radius * Math.cos(phi);
-
-                positions.push(x, y, z);
-
-                // Colorful nebula
-                const hue = Math.random();
-                if(hue < 0.33) {
-                    colors.push(1, 0.3, 0.8); // Magenta
-                } else if(hue < 0.66) {
-                    colors.push(0.3, 0.8, 1); // Cyan
-                } else {
-                    colors.push(1, 0.8, 0.3); // Yellow
-                }
-
-                sizes.push(15 + Math.random() * 25);
-            }
-
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-
-            const material = new THREE.PointsMaterial({
-                size: 20,
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.15,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false,
-                sizeAttenuation: true,
-                map: textures.glow
-            });
-
-            nebulaParticles = new THREE.Points(geometry, material);
-            scene.add(nebulaParticles);
-        }
-
-        // ==========================================
-        // PLANETS
-        // ==========================================
-        function createPlanets() {
-            const planetTypes = ['earth', 'mars', 'jupiter', 'ice', 'lava'];
             
-            for(let i = 0; i < CONFIG.planetCount; i++) {
-                const type = planetTypes[Math.floor(Math.random() * planetTypes.length)];
-                const size = 1 + Math.random() * 3;
-                
-                const geometry = new THREE.SphereGeometry(size, 16, 16);
-                const material = new THREE.MeshBasicMaterial({
-                    map: createPlanetTexture(type),
-                    transparent: false
-                });
-
-                const planet = new THREE.Mesh(geometry, material);
-                
-                // Random position in galaxy
-                const radius = 20 + Math.random() * 40;
-                const angle = Math.random() * Math.PI * 2;
-                planet.position.x = radius * Math.cos(angle);
-                planet.position.z = radius * Math.sin(angle);
-                planet.position.y = (Math.random() - 0.5) * 10;
-
-                // Rotation speed
-                planet.userData.rotationSpeed = 0.001 + Math.random() * 0.005;
-                planet.userData.orbitSpeed = 0.0001 + Math.random() * 0.0003;
-                planet.userData.orbitRadius = radius;
-                planet.userData.orbitAngle = angle;
-
-                scene.add(planet);
-                planets.push(planet);
-            }
+            particleSystem = new THREE.Points(geometry, material);
+            scene.add(particleSystem);
+            particles = geometry;
         }
 
-        // ==========================================
-        // PHOTOS
-        // ==========================================
         function createPhotos() {
             const loader = new THREE.TextureLoader();
-            const photoTextures = [];
-
-            // Load textures
-            photoFiles.forEach((file, i) => {
-                loader.load(
-                    file,
-                    (texture) => {
-                        photoTextures[i] = texture;
-                        if(photoMeshes[i]) {
-                            photoMeshes[i].material.map = texture;
-                            photoMeshes[i].material.needsUpdate = true;
-                        }
-                    },
-                    undefined,
-                    (error) => {
-                        console.warn(`Failed to load ${file}:`, error);
-                    }
-                );
-            });
-
-            // Create photo meshes
-            const photoGeo = new THREE.PlaneGeometry(12, 12);
-            const borderGeo = new THREE.PlaneGeometry(13, 13);
+            const photoGeo = new THREE.PlaneGeometry(14, 14);
+            const borderGeo = new THREE.PlaneGeometry(15, 15);
             const borderMat = new THREE.MeshBasicMaterial({ 
-                color: 0x00ffff,
+                color: 0xd4af37,
                 side: THREE.DoubleSide
             });
-
+            
             for(let i = 0; i < CONFIG.photoCount; i++) {
                 const mat = new THREE.MeshBasicMaterial({
                     color: 0xffffff,
                     side: THREE.DoubleSide,
                     transparent: true
                 });
-
+                
+                loader.load(PHOTO_FILES[i], (texture) => {
+                    mat.map = texture;
+                    mat.needsUpdate = true;
+                });
+                
                 const mesh = new THREE.Mesh(photoGeo, mat);
                 const border = new THREE.Mesh(borderGeo, borderMat);
                 border.position.z = -0.1;
                 mesh.add(border);
-
+                
                 mesh.visible = false;
                 mesh.scale.set(0, 0, 0);
-                mesh.userData.targetScale = 0;
-                
                 scene.add(mesh);
                 photoMeshes.push(mesh);
             }
+        }
+
+        function createLights() {
+            const ambient = new THREE.AmbientLight(0xffd700, 0.4);
+            scene.add(ambient);
+            
+            const point1 = new THREE.PointLight(0xffd700, 1.5, 300);
+            point1.position.set(60, 60, 60);
+            scene.add(point1);
+            
+            const point2 = new THREE.PointLight(0xd4af37, 1.2, 300);
+            point2.position.set(-60, -40, 50);
+            scene.add(point2);
         }
 
         // ==========================================
@@ -1084,289 +513,150 @@
             requestAnimationFrame(animate);
             
             const time = Date.now() * 0.001;
-            const speed = 0.08;
-
-            // Update shaders
-            if(galaxyCore) galaxyCore.material.uniforms.time.value = time;
-            if(galaxyDisk) galaxyDisk.material.uniforms.time.value = time;
-
-            // State-based animation
-            if(state === 'GALAXY') {
-                animateGalaxyMode(time);
-            } else if(state === 'EXPLODE') {
-                animateExplodeMode(time);
-            } else if(state === 'PHOTO') {
-                animatePhotoMode(time);
-            }
-
-            // Rotate planets
-            planets.forEach(planet => {
-                planet.rotation.y += planet.userData.rotationSpeed;
+            progress += (targetProgress - progress) * CONFIG.transitionSpeed;
+            
+            if(particleSystem) {
+                particleSystem.material.uniforms.time.value = time;
+                particleSystem.material.uniforms.progress.value = progress;
                 
-                if(state === 'GALAXY') {
-                    planet.userData.orbitAngle += planet.userData.orbitSpeed;
-                    planet.position.x = planet.userData.orbitRadius * Math.cos(planet.userData.orbitAngle);
-                    planet.position.z = planet.userData.orbitRadius * Math.sin(planet.userData.orbitAngle);
+                const positions = particles.attributes.position.array;
+                const chaosPos = particles.userData.chaos;
+                const targetPos = particles.userData.target;
+                
+                for(let i = 0; i < positions.length; i += 3) {
+                    positions[i] = chaosPos[i] + (targetPos[i] - chaosPos[i]) * progress;
+                    positions[i + 1] = chaosPos[i + 1] + (targetPos[i + 1] - chaosPos[i + 1]) * progress;
+                    positions[i + 2] = chaosPos[i + 2] + (targetPos[i + 2] - chaosPos[i + 2]) * progress;
                 }
-            });
-
-            // Rotate star field slowly
-            if(starField) {
-                starField.rotation.y += 0.0001;
+                
+                particles.attributes.position.needsUpdate = true;
+                
+                if(state === 'FORMED') {
+                    particleSystem.rotation.y += CONFIG.rotationSpeed;
+                }
             }
-
-            // Nebula drift
-            if(nebulaParticles) {
-                nebulaParticles.rotation.y += 0.0002;
-                nebulaParticles.rotation.x += 0.0001;
+            
+            // Photo animations
+            if(state === 'CHAOS') {
+                animatePhotosOrbit(time);
+            } else if(state === 'PHOTO') {
+                animatePhotoView();
+            } else {
+                hidePhotos();
             }
-
+            
             renderer.render(scene, camera);
         }
 
-        function animateGalaxyMode(time) {
-            // Rotate galaxy
-            if(galaxyCore) galaxyCore.rotation.y += CONFIG.rotationSpeed * 2;
-            if(galaxyDisk) galaxyDisk.rotation.y += CONFIG.rotationSpeed;
-
-            // Hide photos
-            photoMeshes.forEach(mesh => {
-                mesh.scale.lerp(new THREE.Vector3(0, 0, 0), 0.1);
-                if(mesh.scale.x < 0.01) mesh.visible = false;
-            });
-
-            // Camera position
-            camera.position.z = THREE.MathUtils.lerp(camera.position.z, 120, 0.05);
-            camera.position.y = THREE.MathUtils.lerp(camera.position.y, 10, 0.05);
-
-            document.getElementById('photo-counter').classList.remove('visible');
-            document.getElementById('swipe-indicator').classList.remove('visible');
-            document.getElementById('nav-left').classList.remove('visible');
-            document.getElementById('nav-right').classList.remove('visible');
-        }
-
-        function animateExplodeMode(time) {
-            // Expand galaxy
-            const targetScale = 2.0;
-            if(galaxyCore) {
-                galaxyCore.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.05);
-            }
-            if(galaxyDisk) {
-                galaxyDisk.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.05);
-            }
-
-            // Scatter planets
-            planets.forEach((planet, i) => {
-                const angle = (i / planets.length) * Math.PI * 2;
-                const radius = 80;
-                const targetX = radius * Math.cos(angle);
-                const targetZ = radius * Math.sin(angle);
-                const targetY = (Math.sin(time + i) * 5);
-
-                planet.position.x = THREE.MathUtils.lerp(planet.position.x, targetX, 0.05);
-                planet.position.z = THREE.MathUtils.lerp(planet.position.z, targetZ, 0.05);
-                planet.position.y = THREE.MathUtils.lerp(planet.position.y, targetY, 0.05);
-            });
-
-            // Show photos in orbit
-            const baseAngle = time * 0.2;
+        function animatePhotosOrbit(time) {
+            const baseAngle = time * 0.15;
             const angleStep = (Math.PI * 2) / CONFIG.photoCount;
-
+            
+            let closestIndex = 0;
+            let minDist = 999;
+            
             photoMeshes.forEach((mesh, i) => {
                 mesh.visible = true;
                 
                 const angle = baseAngle + i * angleStep;
                 const x = Math.sin(angle) * CONFIG.photoOrbitRadius;
                 const z = Math.cos(angle) * CONFIG.photoOrbitRadius;
-                const y = Math.sin(time * 0.5 + i) * 3;
-
-                mesh.position.lerp(new THREE.Vector3(x, y, z), 0.1);
+                const y = Math.sin(time * 0.4 + i) * 4;
+                
+                mesh.position.lerp(new THREE.Vector3(x, y, z), 0.08);
                 mesh.lookAt(camera.position);
-
-                // Scale based on depth
-                const targetScale = (z > 0) ? 1.2 : 0.8;
-                mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
-            });
-
-            // Find closest photo
-            let maxZ = -999;
-            let closestIndex = 0;
-            photoMeshes.forEach((mesh, i) => {
-                if(mesh.position.z > maxZ) {
-                    maxZ = mesh.position.z;
+                
+                const targetScale = (z > 0) ? 1.4 : 0.9;
+                mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.08);
+                
+                const dist = Math.abs(angle - handX * Math.PI * 2);
+                if(dist < minDist) {
+                    minDist = dist;
                     closestIndex = i;
                 }
             });
-            currentPhotoIndex = closestIndex;
-
-            camera.position.z = THREE.MathUtils.lerp(camera.position.z, 80, 0.05);
-            camera.position.y = THREE.MathUtils.lerp(camera.position.y, 0, 0.05);
-
-            document.getElementById('photo-counter').classList.add('visible');
-            document.getElementById('photo-counter').textContent = `${currentPhotoIndex + 1} / ${CONFIG.photoCount}`;
-            document.getElementById('swipe-indicator').classList.add('visible');
-            document.getElementById('nav-left').classList.remove('visible');
-            document.getElementById('nav-right').classList.remove('visible');
+            
+            selectedPhotoIndex = closestIndex;
         }
 
-        function animatePhotoMode(time) {
-            // Giữ galaxy ở background (không thu nhỏ quá)
-            const targetScale = 0.8;
-            if(galaxyCore) {
-                galaxyCore.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.05);
-            }
-            if(galaxyDisk) {
-                galaxyDisk.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.05);
-            }
-
-            // Giữ planets nhỏ nhưng vẫn thấy
-            planets.forEach(planet => {
-                planet.scale.lerp(new THREE.Vector3(0.3, 0.3, 0.3), 0.1);
-            });
-
-            // Show selected photo với transition mượt hơn
+        function animatePhotoView() {
             photoMeshes.forEach((mesh, i) => {
-                if(i === currentPhotoIndex) {
+                if(i === selectedPhotoIndex) {
                     mesh.visible = true;
-                    // Vị trí gần hơn nhưng không che hết galaxy
-                    mesh.position.lerp(new THREE.Vector3(0, 0, 50), CONFIG.photoTransitionSpeed * 0.1);
-                    // Scale nhỏ hơn để thấy background
-                    mesh.scale.lerp(new THREE.Vector3(CONFIG.photoMaxScale, CONFIG.photoMaxScale, CONFIG.photoMaxScale), CONFIG.photoTransitionSpeed * 0.1);
+                    const targetZ = 70 + handZ * 30;
+                    mesh.position.lerp(new THREE.Vector3(0, 0, targetZ), 0.1);
+                    
+                    const targetScale = 4 + handZ * 2;
+                    mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
                     mesh.lookAt(camera.position);
-                    mesh.rotation.z = 0;
                 } else {
-                    // Các ảnh khác fade out chậm
-                    mesh.scale.lerp(new THREE.Vector3(0, 0, 0), 0.05);
+                    mesh.scale.lerp(new THREE.Vector3(0, 0, 0), 0.1);
                     if(mesh.scale.x < 0.01) mesh.visible = false;
                 }
             });
+        }
 
-            camera.position.z = THREE.MathUtils.lerp(camera.position.z, 90, 0.05);
-
-            document.getElementById('photo-counter').classList.add('visible');
-            document.getElementById('photo-counter').textContent = `${currentPhotoIndex + 1} / ${CONFIG.photoCount}`;
-            document.getElementById('swipe-indicator').classList.remove('visible');
-            
-            // Show navigation arrows
-            document.getElementById('nav-left').classList.add('visible');
-            document.getElementById('nav-right').classList.add('visible');
+        function hidePhotos() {
+            photoMeshes.forEach(mesh => {
+                mesh.scale.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+                if(mesh.scale.x < 0.01) mesh.visible = false;
+            });
         }
 
         // ==========================================
-        // CAMERA TOGGLE
+        // STATE CONTROL
         // ==========================================
-        let cameraExpanded = false;
-        
-        function toggleCamera() {
-            const container = document.getElementById('camera-container');
-            const button = document.getElementById('camera-toggle');
+        function setState(newState) {
+            state = newState;
             
-            cameraExpanded = !cameraExpanded;
-            
-            if(cameraExpanded) {
-                container.classList.remove('minimized');
-                container.classList.add('expanded');
-                button.textContent = '📹 THU NHỎ';
-            } else {
-                container.classList.remove('expanded');
-                container.classList.add('minimized');
-                button.textContent = '📹 MỞ RỘNG';
+            if(state === 'FORMED') {
+                targetProgress = 1.0;
+                document.getElementById('status-badge').innerHTML = '✨ PORTRAIT FORMED ✨';
+            } else if(state === 'CHAOS') {
+                targetProgress = 0.0;
+                document.getElementById('status-badge').innerHTML = '💫 MEMORIES UNLEASHED 💫';
+            } else if(state === 'PHOTO') {
+                targetProgress = 0.3;
+                document.getElementById('status-badge').innerHTML = `📸 PHOTO ${selectedPhotoIndex + 1}/${CONFIG.photoCount} 📸`;
             }
         }
 
         // ==========================================
-        // DRAW HAND SKELETON
-        // ==========================================
-        function drawHandLandmarks(ctx, landmarks, width, height) {
-            // Draw connections
-            const connections = [
-                [0,1],[1,2],[2,3],[3,4], // Thumb
-                [0,5],[5,6],[6,7],[7,8], // Index
-                [0,9],[9,10],[10,11],[11,12], // Middle
-                [0,13],[13,14],[14,15],[15,16], // Ring
-                [0,17],[17,18],[18,19],[19,20], // Pinky
-                [5,9],[9,13],[13,17] // Palm
-            ];
-
-            ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
-            ctx.lineWidth = 3;
-            
-            connections.forEach(([start, end]) => {
-                const startPoint = landmarks[start];
-                const endPoint = landmarks[end];
-                
-                ctx.beginPath();
-                ctx.moveTo(startPoint.x * width, startPoint.y * height);
-                ctx.lineTo(endPoint.x * width, endPoint.y * height);
-                ctx.stroke();
-            });
-
-            // Draw landmarks
-            landmarks.forEach((landmark, i) => {
-                const x = landmark.x * width;
-                const y = landmark.y * height;
-                
-                // Different colors for different parts
-                if(i === 0) {
-                    ctx.fillStyle = '#ff0066'; // Wrist - pink
-                } else if([4,8,12,16,20].includes(i)) {
-                    ctx.fillStyle = '#00ff00'; // Fingertips - green
-                } else {
-                    ctx.fillStyle = '#00ffff'; // Others - cyan
-                }
-                
-                ctx.beginPath();
-                ctx.arc(x, y, 5, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // White border
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            });
-        }
-
-        // ==========================================
-        // HAND GESTURE DETECTION
+        // HAND TRACKING
         // ==========================================
         function startHandTracking() {
             const video = document.getElementsByClassName('input_video')[0];
             const canvas = document.getElementById('camera-preview');
             const ctx = canvas.getContext('2d');
-            const statusBadge = document.getElementById('status-badge');
-            const cameraStatus = document.getElementById('camera-status');
-
-            let frameCnt = 0;
+            const statusDiv = document.getElementById('camera-status');
+            
             const hands = new Hands({
                 locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
             });
-
+            
             hands.setOptions({
                 maxNumHands: 1,
                 modelComplexity: 0,
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5
             });
-
+            
+            let frameCnt = 0;
+            
             hands.onResults(results => {
-                // Clear and draw video frame
-                ctx.save();
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.scale(-1, 1);
-                ctx.drawImage(results.image, -canvas.width, 0, canvas.width, canvas.height);
-                ctx.restore();
-
+                ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+                
                 if(results.multiHandLandmarks.length > 0) {
                     const lm = results.multiHandLandmarks[0];
+                    drawHandSkeleton(ctx, lm, canvas.width, canvas.height);
                     
-                    // Draw hand skeleton
-                    drawHandLandmarks(ctx, lm, canvas.width, canvas.height);
-                    
-                    // Track hand X position
-                    prevHandX = handX;
+                    // Hand position
                     handX = lm[9].x;
-
-                    // Calculate gestures
+                    handY = lm[9].y;
+                    handZ = 1 - lm[9].z;
+                    
+                    // Gesture detection
                     const tips = [8, 12, 16, 20];
                     const wrist = lm[0];
                     let openDist = 0;
@@ -1374,89 +664,25 @@
                         openDist += Math.hypot(lm[i].x - wrist.x, lm[i].y - wrist.y);
                     });
                     const avgDist = openDist / 4;
-
-                    // Detect pointing gesture (index finger extended, others closed)
-                    const indexExtended = Math.hypot(lm[8].x - lm[6].x, lm[8].y - lm[6].y) > 0.1;
-                    const middleClosed = Math.hypot(lm[12].x - lm[10].x, lm[12].y - lm[10].y) < 0.08;
-                    const ringClosed = Math.hypot(lm[16].x - lm[14].x, lm[16].y - lm[14].y) < 0.08;
-                    const pinkyClosed = Math.hypot(lm[20].x - lm[18].x, lm[20].y - lm[18].y) < 0.08;
                     
-                    const isPointing = indexExtended && middleClosed && ringClosed && pinkyClosed;
-                    
-                    // Detect pointing direction when in EXPLODE or PHOTO mode
-                    if((state === 'EXPLODE' || state === 'PHOTO') && isPointing) {
-                        const now = Date.now();
-                        if(now - lastPhotoChangeTime > CONFIG.pointingCooldown) {
-                            const indexTipX = lm[8].x;
-                            const palmX = lm[0].x;
-                            const pointing = indexTipX - palmX;
-                            
-                            if(pointing > CONFIG.pointingThreshold) {
-                                // Pointing right -> next photo
-                                nextPhoto();
-                            } else if(pointing < -CONFIG.pointingThreshold) {
-                                // Pointing left -> prev photo
-                                prevPhoto();
-                            }
-                        }
-                    }
-
-                    // State transitions
                     if(avgDist < 0.25) {
-                        // Fist -> GALAXY
-                        state = 'GALAXY';
-                        statusBadge.innerHTML = '✊ THU GALAXY';
-                        statusBadge.style.color = '#00ffff';
-                        statusBadge.style.borderColor = 'rgba(0, 255, 255, 0.6)';
-                        cameraStatus.textContent = '✊ NẮM TAY';
-                        cameraStatus.className = 'detecting';
-                        cameraStatus.style.color = '#00ffff';
+                        setState('FORMED');
+                        statusDiv.textContent = '✊ FORMED';
                     } else if(avgDist > 0.45) {
-                        // Open hand -> EXPLODE
-                        state = 'EXPLODE';
-                        statusBadge.innerHTML = '🖐 KHÁM PHÁ HÀNH TINH';
-                        statusBadge.style.color = '#ff00ff';
-                        statusBadge.style.borderColor = 'rgba(255, 0, 255, 0.6)';
-                        cameraStatus.textContent = '🖐 XÒE TAY';
-                        cameraStatus.className = 'detecting';
-                        cameraStatus.style.color = '#ff00ff';
+                        setState('CHAOS');
+                        statusDiv.textContent = '🖐 UNLEASHED';
                     } else {
-                        // Partial -> PHOTO
-                        state = 'PHOTO';
-                        statusBadge.innerHTML = '📸 XEM ẢNH';
-                        statusBadge.style.color = '#ffff00';
-                        statusBadge.style.borderColor = 'rgba(255, 255, 0, 0.6)';
-                        
-                        if(isPointing) {
-                            cameraStatus.textContent = '☝️ DƠ NGÓN TAY';
-                            cameraStatus.style.color = '#00ff00';
-                        } else {
-                            cameraStatus.textContent = '📸 ĐANG XEM';
-                            cameraStatus.style.color = '#ffff00';
-                        }
-                        cameraStatus.className = 'detecting';
+                        setState('PHOTO');
+                        statusDiv.textContent = `📸 PHOTO ${selectedPhotoIndex + 1}`;
                     }
-
-                    // Draw gesture info on canvas
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                    ctx.fillRect(10, canvas.height - 40, 200, 30);
-                    ctx.fillStyle = '#00ffff';
-                    ctx.font = '14px Space Mono';
-                    const info = isPointing ? 'Dơ ngón tay ☝️' : `Độ mở: ${(avgDist * 100).toFixed(0)}%`;
-                    ctx.fillText(info, 15, canvas.height - 18);
-
+                    
+                    statusDiv.style.color = '#d4af37';
                 } else {
-                    // No hand detected
-                    state = 'GALAXY';
-                    statusBadge.innerHTML = '🌌 KHÁM PHÁ VŨ TRỤ 🌌';
-                    statusBadge.style.color = '#00ffff';
-                    statusBadge.style.borderColor = 'rgba(0, 255, 255, 0.6)';
-                    cameraStatus.textContent = 'Đang tìm tay...';
-                    cameraStatus.className = 'no-hand';
-                    cameraStatus.style.color = '#ff9900';
+                    statusDiv.textContent = 'No hand';
+                    statusDiv.style.color = '#999';
                 }
             });
-
+            
             const cameraUtils = new Camera(video, {
                 onFrame: async () => {
                     frameCnt++;
@@ -1466,36 +692,84 @@
                 width: 640,
                 height: 480
             });
-
+            
             cameraUtils.start();
         }
 
+        function drawHandSkeleton(ctx, lm, w, h) {
+            const connections = [
+                [0,1],[1,2],[2,3],[3,4],
+                [0,5],[5,6],[6,7],[7,8],
+                [0,9],[9,10],[10,11],[11,12],
+                [0,13],[13,14],[14,15],[15,16],
+                [0,17],[17,18],[18,19],[19,20],
+                [5,9],[9,13],[13,17]
+            ];
+            
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.8)';
+            ctx.lineWidth = 2;
+            
+            connections.forEach(([s, e]) => {
+                ctx.beginPath();
+                ctx.moveTo(lm[s].x * w, lm[s].y * h);
+                ctx.lineTo(lm[e].x * w, lm[e].y * h);
+                ctx.stroke();
+            });
+            
+            lm.forEach((l, i) => {
+                ctx.fillStyle = [0,4,8,12,16,20].includes(i) ? '#ffd700' : '#d4af37';
+                ctx.beginPath();
+                ctx.arc(l.x * w, l.y * h, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
         // ==========================================
-        // START SYSTEM
+        // START
         // ==========================================
-        function startSystem() {
-            const splash = document.getElementById('splash-screen');
-            splash.classList.add('hidden');
-
-            setTimeout(() => {
-                splash.style.display = 'none';
-                document.getElementById('ui-layer').style.display = 'block';
-            }, 1000);
-
-            // Start music
-            bgMusic.play().catch(e => console.log('Music autoplay blocked:', e));
-
-            // Initialize 3D
+        async function startExperience() {
+            document.getElementById('splash').classList.add('hidden');
+            document.getElementById('loading').style.display = 'block';
+            
+            // Simulate loading
+            let loadProgress = 0;
+            const loadInterval = setInterval(() => {
+                loadProgress += 10;
+                document.getElementById('loading-fill').style.width = loadProgress + '%';
+                
+                if(loadProgress >= 100) {
+                    clearInterval(loadInterval);
+                    setTimeout(() => {
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('ui-layer').style.display = 'block';
+                        document.getElementById('camera-container').style.display = 'block';
+                    }, 300);
+                }
+            }, 100);
+            
+            // Load portrait
+            portraitGeometry = await loadAndProcessPortrait();
+            console.log(`Portrait: ${portraitGeometry.length} points`);
+            
+            // Init 3D
             init3D();
-
-            // Start hand tracking
             startHandTracking();
         }
 
         // ==========================================
-        // EVENT LISTENERS
+        // CONTROLS
         // ==========================================
-        document.getElementById('start-button').addEventListener('click', startSystem);
+        document.addEventListener('keydown', (e) => {
+            if(e.key === ' ') {
+                e.preventDefault();
+                if(state === 'FORMED') setState('CHAOS');
+                else setState('FORMED');
+            } else if(e.key === 'ArrowLeft') {
+                selectedPhotoIndex = (selectedPhotoIndex - 1 + CONFIG.photoCount) % CONFIG.photoCount;
+            } else if(e.key === 'ArrowRight') {
+                selectedPhotoIndex = (selectedPhotoIndex + 1) % CONFIG.photoCount;
+            }
+        });
 
         window.addEventListener('resize', () => {
             if(camera && renderer) {
@@ -1503,107 +777,6 @@
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
             }
-        });
-
-        // Custom cursor tracking
-        document.addEventListener('mousemove', (e) => {
-            const cursor = document.getElementById('custom-cursor');
-            cursor.style.left = e.clientX + 'px';
-            cursor.style.top = e.clientY + 'px';
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if(e.key === 'ArrowLeft') {
-                if(state === 'EXPLODE' || state === 'PHOTO') {
-                    prevPhoto();
-                }
-            } else if(e.key === 'ArrowRight') {
-                if(state === 'EXPLODE' || state === 'PHOTO') {
-                    nextPhoto();
-                }
-            } else if(e.key === ' ') {
-                e.preventDefault();
-                // Toggle between GALAXY and EXPLODE
-                if(state === 'GALAXY') {
-                    state = 'EXPLODE';
-                } else {
-                    state = 'GALAXY';
-                }
-            }
-        });
-
-        // Mouse drag controls for photo navigation
-        renderer.domElement.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            dragStartX = e.clientX;
-        });
-
-        renderer.domElement.addEventListener('mousemove', (e) => {
-            if(isDragging && (state === 'EXPLODE' || state === 'PHOTO')) {
-                const dragDelta = e.clientX - dragStartX;
-                
-                // Horizontal swipe
-                if(Math.abs(dragDelta) > dragThreshold) {
-                    if(dragDelta > 0) {
-                        // Drag right -> previous photo
-                        prevPhoto();
-                        state = 'PHOTO'; // Switch to PHOTO mode when dragging
-                    } else {
-                        // Drag left -> next photo
-                        nextPhoto();
-                        state = 'PHOTO'; // Switch to PHOTO mode when dragging
-                    }
-                    dragStartX = e.clientX;
-                }
-            }
-        });
-
-        renderer.domElement.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
-
-        renderer.domElement.addEventListener('mouseleave', () => {
-            isDragging = false;
-        });
-
-        // Touch controls
-        let touchStartX = 0;
-        let touchStartY = 0;
-        
-        renderer.domElement.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        });
-
-        renderer.domElement.addEventListener('touchmove', (e) => {
-            if(state === 'EXPLODE' || state === 'PHOTO') {
-                e.preventDefault();
-                const touchDelta = e.touches[0].clientX - touchStartX;
-                
-                if(Math.abs(touchDelta) > dragThreshold) {
-                    if(touchDelta > 0) {
-                        // Swipe right -> previous photo
-                        prevPhoto();
-                        state = 'PHOTO';
-                    } else {
-                        // Swipe left -> next photo
-                        nextPhoto();
-                        state = 'PHOTO';
-                    }
-                    touchStartX = e.touches[0].clientX;
-                }
-            }
-        }, { passive: false });
-
-        renderer.domElement.addEventListener('touchend', () => {
-            touchStartX = 0;
-            touchStartY = 0;
-        });
-
-        // Error handling
-        window.addEventListener('error', (e) => {
-            console.error('Error:', e.error);
         });
     </script>
 </body>
